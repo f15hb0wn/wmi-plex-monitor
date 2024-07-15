@@ -5,6 +5,7 @@ import requests
 import yaml
 from datetime import datetime
 from plexapi.server import PlexServer
+import time
 
 # Load the settings from settings.yaml
 with open('settings.yaml', 'r') as file:
@@ -110,16 +111,27 @@ gpus = []
 # Pause polling on window move
 pause_polling = False
 
-# Build connection to WMI server, try with user and password first, if that fails try without
-try:
-    w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
-except:
-    w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER)
-try:
-    u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
-except:
-    u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER)
+def wmi_connect():
+    global w, u
+    # Build connection to WMI server, try with user and password first, if that fails try without
+    try:
+        w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
+    except:
+        try:
+            w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER)
+        except:
+            print("Unable to connect to WMI server")
+            return False
+    try:
+        u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
+    except:
+        try:
+            u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER)
+        except:
+            print("Unable to connect to WMI server")
+            return False
 
+wmi_connect()
 temps = []
 utils = []
 fan_speeds = []
@@ -137,7 +149,10 @@ def poll_wmi():
     net = []
     disk = []
     # Get temperature sensor information
-    temperature_infos = w.Sensor()
+    try :
+        temperature_infos = w.Sensor()
+    except:
+        return False
 
     # Temperature variables
     cpu_temp = 0
@@ -157,56 +172,59 @@ def poll_wmi():
     d_up = 0
     d_down = 0
     # Process temps
-    for sensor in temperature_infos:
-        #Temperature sensors
-        if sensor.SensorType == u'Temperature' and sensor.Name == "GPU Core":
-            temps.append(("GPU-" + str(gpu_id), sensor.Value))
-            if sensor.Parent not in gpus:
-                gpus.append(sensor.Parent)
-            gpu_id = gpus.index(sensor.Parent)
-        if sensor.SensorType == u'Temperature' and sensor.Name == "CPU Socket":
-            cpu_temp = sensor.Value
-        if sensor.SensorType == u'Temperature' and sensor.Name == "System":
-            system_temp = sensor.Value
-        if sensor.SensorType == u'Temperature' and sensor.Name == "Temperature" and sensor.Parent == DISK_ID:
-            hdd_temp = sensor.Value
-        # Get utilization sensor information
-        if sensor.SensorType == u'Load' and sensor.Name == "GPU Core":
-            if sensor.Parent not in gpus:
-                gpus.append(sensor.Parent)
-            gpu_id = gpus.index(sensor.Parent)
-            gpu_speed = round(sensor.Value)
-            utils.append(("GPU-" + str(gpu_id), gpu_speed))
-        if sensor.SensorType == u'Load' and sensor.Name == "CPU Total":
-            cpu_total = sensor.Value
-        if sensor.SensorType == u'Clock' and sensor.Name == "CPU Core #1":
-            cpu_speed = sensor.Value
-        if sensor.SensorType == u'Load' and sensor.Name == "Memory":
-            ram_used = sensor.Value
-        if sensor.SensorType == u'Load' and sensor.Name == "Total Activity" and sensor.Parent == DISK_ID:
-            hdd_used = sensor.Value
-        #Fan speeds
-        if sensor.SensorType == u'Control' and (sensor.Name == "GPU Fan" or sensor.Name == "GPU Fan 1"):
-            if sensor.Parent not in gpus:
-                gpus.append(sensor.Parent)
-            gpu_id = gpus.index(sensor.Parent)
-            fan_speeds.append(("GPU-" + str(gpu_id), sensor.Value))
-        if sensor.SensorType == u'Control' and sensor.Name == "CPU Fan":
-            fan_speeds.append(("CPU", sensor.Value))
-        if sensor.SensorType == u'Control' and sensor.Name == "System Fan #1":
-            fan_speeds.append(("RAM", sensor.Value))
-            if DISK_ID:
-                fan_speeds.append(("DISK", sensor.Value))
-        #Network sensors
-        if sensor.Name == "Upload Speed":
-            up = sensor.Value + up
-        if sensor.Name == "Download Speed":
-            down = sensor.Value + down
-        #Disk sensors
-        if sensor.Name == "Read Rate":
-            d_up = sensor.Value + up
-        if sensor.Name == "Write Rate":
-            d_down = sensor.Value + down
+    try:
+        for sensor in temperature_infos:
+            #Temperature sensors
+            if sensor.SensorType == u'Temperature' and sensor.Name == "GPU Core":
+                temps.append(("GPU-" + str(gpu_id), sensor.Value))
+                if sensor.Parent not in gpus:
+                    gpus.append(sensor.Parent)
+                gpu_id = gpus.index(sensor.Parent)
+            if sensor.SensorType == u'Temperature' and sensor.Name == "CPU Socket":
+                cpu_temp = sensor.Value
+            if sensor.SensorType == u'Temperature' and sensor.Name == "System":
+                system_temp = sensor.Value
+            if sensor.SensorType == u'Temperature' and sensor.Name == "Temperature" and sensor.Parent == DISK_ID:
+                hdd_temp = sensor.Value
+            # Get utilization sensor information
+            if sensor.SensorType == u'Load' and sensor.Name == "GPU Core":
+                if sensor.Parent not in gpus:
+                    gpus.append(sensor.Parent)
+                gpu_id = gpus.index(sensor.Parent)
+                gpu_speed = round(sensor.Value)
+                utils.append(("GPU-" + str(gpu_id), gpu_speed))
+            if sensor.SensorType == u'Load' and sensor.Name == "CPU Total":
+                cpu_total = sensor.Value
+            if sensor.SensorType == u'Clock' and sensor.Name == "CPU Core #1":
+                cpu_speed = sensor.Value
+            if sensor.SensorType == u'Load' and sensor.Name == "Memory":
+                ram_used = sensor.Value
+            if sensor.SensorType == u'Load' and sensor.Name == "Total Activity" and sensor.Parent == DISK_ID:
+                hdd_used = sensor.Value
+            #Fan speeds
+            if sensor.SensorType == u'Control' and (sensor.Name == "GPU Fan" or sensor.Name == "GPU Fan 1"):
+                if sensor.Parent not in gpus:
+                    gpus.append(sensor.Parent)
+                gpu_id = gpus.index(sensor.Parent)
+                fan_speeds.append(("GPU-" + str(gpu_id), sensor.Value))
+            if sensor.SensorType == u'Control' and sensor.Name == "CPU Fan":
+                fan_speeds.append(("CPU", sensor.Value))
+            if sensor.SensorType == u'Control' and sensor.Name == "System Fan #1":
+                fan_speeds.append(("RAM", sensor.Value))
+                if DISK_ID:
+                    fan_speeds.append(("DISK", sensor.Value))
+            #Network sensors
+            if sensor.Name == "Upload Speed":
+                up = sensor.Value + up
+            if sensor.Name == "Download Speed":
+                down = sensor.Value + down
+            #Disk sensors
+            if sensor.Name == "Read Rate":
+                d_up = sensor.Value + up
+            if sensor.Name == "Write Rate":
+                d_down = sensor.Value + down
+    except:
+        return False
     # Process Temperatures     
     temps.append(("CPU", cpu_temp))
     temps.append(("RAM", system_temp))
@@ -233,6 +251,7 @@ def poll_wmi():
     d_down = round(d_down / 1024 / 1024)
     disk.append(d_up)
     disk.append(d_down)
+    return True
 
 def uptime_wmi():
     global u
@@ -300,7 +319,11 @@ def update_metrics():
     if not pause_polling:
         # Fetch the temperatures
         global temps, utils, fan_speeds, net, disk
-        poll_wmi()
+        poll_success = poll_wmi()
+        if not poll_success:
+            wmi_connect()
+            return False
+            
         # Check if the window is outside the screen's dimensions
         if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
             # If it is, reset the window's position to the starting position
