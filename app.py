@@ -97,11 +97,9 @@ def get_active_plex_sessions():
         print(f"Error occurred fetching sessions: {e}")
         return False
     if len(sessions) == 0:
-        return "None active"
+        return "Idle"
     else:
-        print(f"Active sessions: {active_users}")
         active_users_text = ', '.join(active_users)
-        print(f"Active users: {active_users_text}")
         return active_users_text
 
 
@@ -471,7 +469,10 @@ def update_metrics():
             if not active_sessions:
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
             else:
-                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
+                if active_sessions == "Idle":
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='blue')
+                else:
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
             small_font = int(FONT_SIZE * 0.7)
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Plex: {active_sessions}")
             device_elements.append((shape, text))
