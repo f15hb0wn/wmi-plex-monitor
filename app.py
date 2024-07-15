@@ -322,8 +322,8 @@ def update_metrics():
         poll_success = poll_wmi()
         if not poll_success:
             wmi_connect()
-            return False
-            
+            time.sleep(1)
+            return None    
         # Check if the window is outside the screen's dimensions
         if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
             # If it is, reset the window's position to the starting position
