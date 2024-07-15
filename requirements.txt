@@ -1,0 +1,4 @@
+wmi
+pyyaml
+requests
+plexapi
