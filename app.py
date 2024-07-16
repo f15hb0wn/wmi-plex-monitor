@@ -382,7 +382,9 @@ def update_metrics():
                     color = 'yellow'
                 else:
                     color = 'red'
-                
+                # Alarm on dead fan
+                if fan_speed < 1:
+                    color = 'red'
                 # Create the circle and text elements with the color determined above
                 try:         
                     if utils[i][1] > UTILIZATION_CAUTION:
