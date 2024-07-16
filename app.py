@@ -120,6 +120,18 @@ def fetch_weather():
         low_temp = data['forecast']['forecastday'][0]['day']['mintemp_f']
         chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain']
         chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow']
+        aq_ozone = data['current']['air_quality']['o3']
+        aq_pm10 = data['current']['air_quality']['pm10']
+        aq_pm2_5 = data['current']['air_quality']['pm2_5']
+        aq_no2 = data['current']['air_quality']['no2']
+        aq_so2 = data['current']['air_quality']['so2']
+        aq_co = data['current']['air_quality']['co']
+
+        aq_score = "Good"
+        if aq_ozone > 100 or aq_pm10 > 20 or aq_pm2_5 > 11 or aq_no2 > 11 or aq_so2 > 11 or aq_co > 10000:
+            aq_score = "Moderate"
+        if aq_ozone > 180 or aq_pm10 > 50 or aq_pm2_5 > 25 or aq_no2 > 20 or aq_so2 > 20 or aq_co > 20000:
+            aq_score = "Poor"
 
         # Set the color based on the weather conditions
         color = 'green'
@@ -140,7 +152,8 @@ def fetch_weather():
             'low_temp': low_temp,
             'chance_of_rain': chance_of_rain,
             'chance_of_snow': chance_of_snow,
-            'color': color
+            'color': color,
+            'aq_score': aq_score
         }
         return weather_data
     
@@ -632,6 +645,17 @@ def update_metrics():
                     shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
                     msg = f'{weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
                     text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
+                device_elements.append((shape, text))
+                #Add Air Quality
+                row = row + 1
+                i = i + 1
+                if weather['aq_score'] == "Moderate":
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='yellow')
+                elif weather['aq_score'] == "Poor":
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                elif weather['aq_score'] == "Good":
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
+                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Air Quality: {weather['aq_score']}")
                 device_elements.append((shape, text))
             except Exception as e:
                 print("Error occurred in processing weather")
