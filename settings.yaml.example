@@ -2,31 +2,29 @@
 CAUTION_TEMP: 70
 DANGER_TEMP: 85
 DISKOPS_CAUTION: 120
-DISK_ID: "/nvme/2"
 MAX_CPU_MHZ: 5500
 NETOPS_CAUTION: 350
 UTILIZATION_CAUTION: 95
 # Data Sampling Settings
 NUM_SAMPLES: 30
-POLL_INTERVAL_MS: 1000
+POLL_INTERVAL_MS: 3000
 UTIL_SAMPLES: 10
 # UI Settings
-HEIGHT: 0 # 0 = full screen
-WIDTH: 0 # 0 = full screen
+HEIGHT: 400 # 0 = full screen
+WIDTH: 600 # 0 = full screen
 X_LOCATION: 0
 Y_LOCATION: 0
-ROW_HEIGHT: 50
-#WMI Settings
+ROW_HEIGHT: 20
+#Libre Hardware Web Server Settings
 REMOTE_SERVER: 192.168.10.253
-USERNAME: "wmiuser"
-PASSWORD: "password"
+REMOTE_PORT: 8085
 # Plex Settings
-PLEX_ENABLED: true
-PLEX_ACCOUNT: plexuser
+PLEX_ENABLED: false
+PLEX_ACCOUNT: plex_user
 PLEX_SERVER: http://192.168.10.253:32400
-PLEX_TOKEN: xxxxxxxxxxxxxxxxxxxxxxxx
+PLEX_TOKEN: xxxxxxx
 # Web Server Settings
-WEB_SERVER_ENABLED: true
+WEB_SERVER_ENABLED: false
 WEB_SERVER: https://www.charlesherring.com
 WEB_RESPONSE_CODE: 200
 WEB_SERVER_NAME: "CharlesHerring.com"

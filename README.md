@@ -16,7 +16,7 @@ I wanted a simple widget to display GPU and CPU temperatures to have the followi
 
 # Pre-requisites
 - Download, extract and run (as Administrator) Libre Hardware Monitor: https://github.com/LibreHardwareMonitor/LibreHardwareMonitor on the server to monitor
-- If monitoring remotely, allow WMI access from user
+- Enable Web server in LibreHardwareMonitor
 - Install Python for Windows (tested on 3.12): https://www.python.org/downloads/
 - Download this code and change directory to it.
 - Install dependencies: `pip install -r requirements.txt`

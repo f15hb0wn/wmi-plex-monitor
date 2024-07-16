@@ -1,12 +1,15 @@
 from tkinter import Tk, Canvas
 from collections import deque
-import wmi
 import requests
 import yaml
+import json
 from datetime import datetime
 from plexapi.server import PlexServer
 import time
+import traceback
+import pytz
 
+DEBUG = False
 # Load the settings from settings.yaml
 with open('settings.yaml', 'r') as file:
     settings = yaml.safe_load(file)
@@ -25,11 +28,8 @@ NUM_SAMPLES = settings['NUM_SAMPLES']
 UTIL_SAMPLES = settings['UTIL_SAMPLES']
 # Set the maximum CPU frequency in MHz
 MAX_CPU_MHZ = settings['MAX_CPU_MHZ']
-# Set the ID of the disk to monitor
-DISK_ID = settings['DISK_ID']
 REMOTE_SERVER = settings['REMOTE_SERVER']
-USERNAME = settings['USERNAME']
-PASSWORD = settings['PASSWORD']
+REMOTE_PORT = settings['REMOTE_PORT']
 # Set width of the window
 HEIGHT = settings['HEIGHT']
 WIDTH = settings['WIDTH']
@@ -71,6 +71,19 @@ WEB_SERVER_ENABLED = settings['WEB_SERVER_ENABLED']
 WEB_RESPONSE_CODE = settings['WEB_RESPONSE_CODE']
 WEB_SERVER_NAME = settings['WEB_SERVER_NAME']
 
+from datetime import datetime
+import pytz  # Import the pytz module
+
+def world_time():
+    # Use pytz.timezone to get tzinfo objects based on timezone strings
+    chicago_time = datetime.now().astimezone(pytz.timezone('America/Chicago'))
+    newyork_time = datetime.now().astimezone(pytz.timezone('America/New_York'))
+    london_time = datetime.now().astimezone(pytz.timezone('Europe/London'))
+    tokyo_time = datetime.now().astimezone(pytz.timezone('Asia/Tokyo'))
+    losangeles_time = datetime.now().astimezone(pytz.timezone('America/Los_Angeles'))
+    month_day_year = datetime.now().strftime('%m/%d/%Y')
+    return f"{month_day_year} | ET: {newyork_time.strftime('%H:%M')}  | CT: {chicago_time.strftime('%H:%M')}  | PT: {losangeles_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
+
 # check if the web server is giving the correct response code
 def check_web_server():
     start_time = time.time()
@@ -84,7 +97,7 @@ def check_web_server():
         return False
     else:
         end_time = time.time()
-        print(f"Web server check took {end_time - start_time} seconds")
+        if DEBUG: print(f"Web server check took {end_time - start_time} seconds")
         return True
 
 
@@ -105,7 +118,7 @@ def get_active_plex_sessions():
         return "Idle"
     else:
         end_time = time.time()
-        print(f"Plex check took {end_time - start_time} seconds")
+        if DEBUG: print(f"Plex check took {end_time - start_time} seconds")
         active_users_text = ', '.join(active_users)
         return active_users_text
 
@@ -116,35 +129,31 @@ gpus = []
 # Pause polling on window move
 pause_polling = False
 
-def wmi_connect():
-    global w, u
-    # Build connection to WMI server, try with user and password first, if that fails try without
-    try:
-        w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
-    except:
-        try:
-            w = wmi.WMI(namespace="root\\LibreHardwareMonitor", computer=REMOTE_SERVER)
-        except:
-            print("Unable to connect to WMI server")
-            return False
-    try:
-        u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER, user=USERNAME, password=PASSWORD)
-    except:
-        try:
-            u = wmi.WMI(namespace="root\\CIMV2", computer=REMOTE_SERVER)
-        except:
-            print("Unable to connect to WMI server")
-            return False
-
-wmi_connect()
 temps = []
 utils = []
 fan_speeds = []
 net = []
 disk = []
-def poll_wmi():
+def remove_units_to_float(temp):
+    value = temp
+    try:
+        strings_to_remove = [' ','°C','°F','%','/s', '/', 'RPM', 'KB', 'MB', 'GB', 'TB','MHz', 'GHz', 'V', 'W'] 
+        for string in strings_to_remove:
+            value = value.replace(string, '')
+        if 'KB' in temp or 'Kb' in temp:
+            value = float(value) * 1024
+        elif 'MB' in temp or 'Mb' in temp:
+            value = float(value) * 1024 * 1024
+        elif 'GB' in temp or 'Gb' in temp:
+            value = float(value) * 1024 * 1024 * 1024
+        return float(value)
+    except Exception as e:
+        print(f"Error occurred in remove_units_to_float: {e}")
+        traceback.print_exc()
+        return temp
+def poll_libre():
     start_time = time.time()
-    global temps, utils, fan_speeds, net, disk
+    global temps, utils, fan_speeds, net, disk, temperature_infos
     # Connect to the OpenHardwareMonitor namespace on the remote server
     global w
     
@@ -154,12 +163,6 @@ def poll_wmi():
     fan_speeds = []
     net = []
     disk = []
-    # Get temperature sensor information
-    try :
-        temperature_infos = w.Sensor()
-    except:
-        return False
-
     # Temperature variables
     cpu_temp = 0
     system_temp = 0
@@ -177,59 +180,107 @@ def poll_wmi():
     #Disk variables
     d_up = 0
     d_down = 0
-    # Process temps
+    # Process temps into a list of tuples
+    OHW_ADDRESS = f"http://{REMOTE_SERVER}:{REMOTE_PORT}/data.json"
+    OHW_DICT = json.loads(requests.get(OHW_ADDRESS).text)
+    sensors = []
+    counta=0
+    countb=0
+    countc=0
+    countd=0
+    for i in OHW_DICT['Children'][0]['Children']:
+        parent = OHW_DICT['Children'][0]['Children'][counta]['Text']
+        for o in OHW_DICT['Children'][0]['Children'][counta]['Children']:
+            if counta > 0:
+                sensor_type = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Text']
+            else:
+                parent = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Text']
+            for p in OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children']:
+                if counta > 0:
+                    data = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children'][countc]
+                    #data_min = data['Min']
+                    #data_max = data['Max']
+                    data_current = remove_units_to_float(data['Value'])
+                    data_name = data['Text']
+                    sensor = {
+                        'Name': data_name,
+                        'SensorType': sensor_type,
+                        'Parent': parent,
+                        'Value': data_current
+                    }
+                else:
+                    for q in OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children'][countc]['Children']:
+                        sensor_type = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children'][countc]['Text']
+                        data = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children'][countc]['Children'][countd]
+                        #data_min = data['Min']
+                        #data_max = data['Max']
+                        data_current = remove_units_to_float(data['Value'])
+                        data_name = data['Text']
+                        sensor = {
+                            'Name': data_name,
+                            'SensorType': sensor_type,
+                            'Parent': parent,
+                            'Value': data_current
+                        }
+                        sensors.append(sensor)
+                        countd+=1
+                    countd=0
+                sensors.append(sensor)
+                countc+=1
+            countc=0
+            countb+=1
+        countb=0
+        counta+=1
+    # Process the sensors
     try:
-        for sensor in temperature_infos:
+        for sensor in sensors:
             #Temperature sensors
-            if sensor.SensorType == u'Temperature' and sensor.Name == "GPU Core":
-                temps.append(("GPU-" + str(gpu_id), sensor.Value))
-                if sensor.Parent not in gpus:
-                    gpus.append(sensor.Parent)
-                gpu_id = gpus.index(sensor.Parent)
-            if sensor.SensorType == u'Temperature' and sensor.Name == "CPU Socket":
-                cpu_temp = sensor.Value
-            if sensor.SensorType == u'Temperature' and sensor.Name == "System":
-                system_temp = sensor.Value
-            if sensor.SensorType == u'Temperature' and sensor.Name == "Temperature" and sensor.Parent == DISK_ID:
-                hdd_temp = sensor.Value
+            if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "GPU Core":
+                temps.append(("GPU-" + str(gpu_id), sensor['Value']))
+                if sensor['Parent'] not in gpus:
+                    gpus.append(sensor['Parent'])
+                gpu_id = gpus.index(sensor['Parent'])
+            if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "CPU Socket":
+                cpu_temp = sensor['Value']
+            if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "System":
+                system_temp = sensor['Value']
             # Get utilization sensor information
-            if sensor.SensorType == u'Load' and sensor.Name == "GPU Core":
-                if sensor.Parent not in gpus:
-                    gpus.append(sensor.Parent)
-                gpu_id = gpus.index(sensor.Parent)
-                gpu_speed = round(sensor.Value)
+            if sensor['SensorType'] == u'Load' and sensor['Name'] == "GPU Core":
+                if sensor['Parent'] not in gpus:
+                    gpus.append(sensor['Parent'])
+                gpu_id = gpus.index(sensor['Parent'])
+                gpu_speed = round(sensor['Value'])
                 utils.append(("GPU-" + str(gpu_id), gpu_speed))
-            if sensor.SensorType == u'Load' and sensor.Name == "CPU Total":
-                cpu_total = sensor.Value
-            if sensor.SensorType == u'Clock' and sensor.Name == "CPU Core #1":
-                cpu_speed = sensor.Value
-            if sensor.SensorType == u'Load' and sensor.Name == "Memory":
-                ram_used = sensor.Value
-            if sensor.SensorType == u'Load' and sensor.Name == "Total Activity" and sensor.Parent == DISK_ID:
-                hdd_used = sensor.Value
+            if sensor['SensorType'] == u'Load' and sensor['Name'] == "CPU Total":
+                cpu_total = sensor['Value']
+            if sensor['SensorType'] == u'Clocks' and sensor['Name'] == "CPU Core #1":
+                cpu_speed = sensor['Value']
+            if sensor['SensorType'] == u'Load' and sensor['Name'] == "Memory":
+                ram_used = sensor['Value']
             #Fan speeds
-            if sensor.SensorType == u'Control' and (sensor.Name == "GPU Fan" or sensor.Name == "GPU Fan 1"):
-                if sensor.Parent not in gpus:
-                    gpus.append(sensor.Parent)
-                gpu_id = gpus.index(sensor.Parent)
-                fan_speeds.append(("GPU-" + str(gpu_id), sensor.Value))
-            if sensor.SensorType == u'Control' and sensor.Name == "CPU Fan":
-                fan_speeds.append(("CPU", sensor.Value))
-            if sensor.SensorType == u'Control' and sensor.Name == "System Fan #1":
-                fan_speeds.append(("RAM", sensor.Value))
-                if DISK_ID:
-                    fan_speeds.append(("DISK", sensor.Value))
+            if sensor['SensorType'] == u'Controls' and (sensor['Name'] == "GPU Fan" or sensor['Name'] == "GPU Fan 1"):
+                if sensor['Parent'] not in gpus:
+                    gpus.append(sensor['Parent'])
+                gpu_id = gpus.index(sensor['Parent'])
+                fan_speeds.append(("GPU-" + str(gpu_id), sensor['Value']))
+            if sensor['SensorType'] == u'Controls' and sensor['Name'] == "CPU Fan":
+                fan_speeds.append(("CPU", sensor['Value']))
+            if sensor['SensorType'] == u'Controls' and sensor['Name'] == "System Fan #1":
+                fan_speeds.append(("RAM", sensor['Value']))
             #Network sensors
-            if sensor.Name == "Upload Speed":
-                up = sensor.Value + up
-            if sensor.Name == "Download Speed":
-                down = sensor.Value + down
+            if sensor['Name'] == "Upload Speed":
+                up = float(sensor['Value']) + up
+            if sensor['Name'] == "Download Speed":
+                down = float(sensor['Value']) + down
             #Disk sensors
-            if sensor.Name == "Read Rate":
-                d_up = sensor.Value + up
-            if sensor.Name == "Write Rate":
-                d_down = sensor.Value + down
-    except:
+            if sensor['Name'] == "Read Rate":
+                d_up = float(sensor['Value']) + d_up
+            if sensor['Name'] == "Write Rate":
+                d_down = float(sensor['Value']) + d_down
+    except Exception as e:
+        print("Error occurred in processing libre_poll")
+        print(e)
+        traceback.print_exc()
         return False
     # Process Temperatures     
     temps.append(("CPU", cpu_temp))
@@ -258,20 +309,8 @@ def poll_wmi():
     disk.append(d_up)
     disk.append(d_down)
     end_time = time.time()
-    print(f"Poll took {end_time - start_time} seconds")
+    if DEBUG: print(f"Poll took {end_time - start_time} seconds")
     return True
-
-def uptime_wmi():
-    start_time = time.time()
-    global u
-    try:
-        for os in u.Win32_OperatingSystem():
-            end_time = time.time()
-            print(f"Uptime check took {end_time - start_time} seconds")
-            return os.LastBootUpTime
-    except:
-        return False
-    return False
 
 # Create a new Tkinter window
 window = Tk()
@@ -331,7 +370,7 @@ def update_metrics():
         try:
             # Fetch the temperatures
             global temps, utils, fan_speeds, net, disk
-            poll_wmi()
+            poll_libre()
 
             # Check if the window is outside the screen's dimensions
             if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
@@ -350,8 +389,9 @@ def update_metrics():
             # Set the window height based on the number of GPUs
             window.geometry(f'{WIDTH}x{HEIGHT}+{window.winfo_x()}+{window.winfo_y()}')
             window.attributes('-alpha', 1.0)
-        except:
+        except Exception as e:
             print("Error occurred preparing canvas")
+            print(e)
             time.sleep(1)
             return None
         try:
@@ -418,7 +458,10 @@ def update_metrics():
 
                     # Add the elements to the list
                     device_elements.append((shape, text))
-                except:
+                except Exception as e:
+                    print("Error occurred in processing main temps")
+                    print(e)
+                    traceback.print_exc()
                     continue
                 net_row = i
             # Add Network Up and Down
@@ -427,7 +470,11 @@ def update_metrics():
             if len(util_poll_samples) <= i:
                 util_poll_samples.append(0)
             color = 'green'
-            total_net = net[0] + net[1]
+            try:
+                total_net = net[0] + net[1]
+            except:
+                total_net = 0
+                net = [0, 0]
             if total_net > 0:
                 if total_net > NETOPS_CAUTION:
                     util_poll_samples[i] = util_poll_samples[i] + 1
@@ -450,7 +497,11 @@ def update_metrics():
             if len(util_poll_samples) <= i:
                 util_poll_samples.append(0)
             color = 'green'
-            total_disk = disk[0] + disk[1]
+            try:
+                total_disk = disk[0] + disk[1]
+            except:
+                total_disk = 0
+                disk = [0, 0]
             if total_disk > 0:
                 if total_net > DISKOPS_CAUTION:
                     util_poll_samples[i] = util_poll_samples[i] + 1
@@ -466,8 +517,10 @@ def update_metrics():
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t|\t\t| {disk[0]}MB↑ {disk[1]}MB↓")
             device_elements.append((shape, text))
-        except:
-            print("Error occurred in processing main wmipoll")
+        except Exception as e:
+            print("Error occurred in processing libre data")
+            print(e)
+            traceback.print_exc()
             # Remove the old Device elements
             for circle, text in device_elements:
                 canvas.delete(circle)
@@ -488,7 +541,7 @@ def update_metrics():
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Web Server ({WEB_SERVER_NAME})")
             device_elements.append((shape, text))
-
+        small_font = int(FONT_SIZE * 0.7)
         # Check if there are any active Plex sessions
         if PLEX_ENABLED:
             row = row + 1
@@ -501,48 +554,13 @@ def update_metrics():
                     shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='blue')
                 else:
                     shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
-            small_font = int(FONT_SIZE * 0.7)
+           
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Plex: {active_sessions}")
             device_elements.append((shape, text))
         # Add the uptime
         row = row + 1
         i = i + 1
 
-        # Assuming uptime_wmi() returns a string like '20240714130432.500000-300'
-        uptime_str = uptime_wmi()
-        if uptime_str:
-            # Parse the string (this step may need to be adjusted based on the exact format)
-            # Example format: 'YYYYMMDDHHMMSS.microseconds-timezone'
-            parsed_time = datetime.strptime(uptime_str[:14], '%Y%m%d%H%M%S')
-
-            # Calculate uptime as the difference between now and the parsed time
-            now = datetime.now()
-            uptime_delta = now - parsed_time
-
-            # Convert uptime to total seconds (or another unit as needed)
-            uptime_seconds = int(uptime_delta.total_seconds())
-
-            # Now you can use uptime_seconds in your calculations
-            days = uptime_seconds // (24 * 3600)
-            uptime_seconds %= (24 * 3600)
-            hours = uptime_seconds // 3600
-            uptime_seconds %= 3600
-            minutes = uptime_seconds // 60
-            uptime_seconds %= 60
-            seconds = uptime_seconds
-
-            # Format the uptime string
-            uptime_str = f"{days}d {hours}h {minutes}m {seconds}s"
-
-            # Create the uptime text element
-            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Uptime: {uptime_str}")
-        else:
-            # Create the uptime text element
-            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='Red')
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Uptime: Not available")
-        # Add the uptime element to the device_elements list
-        device_elements.append((shape, text))
         # Remember the window's current position and size
         x = window.winfo_x()
         y = window.winfo_y()
@@ -554,7 +572,11 @@ def update_metrics():
         total_height = HEIGHT
         window.geometry(f'{WIDTH}x{total_height}+{window.winfo_x()}+{window.winfo_y()}')
         canvas.config(width=WIDTH, height=total_height)
-        
+        # Add a row of the world time
+        row = row + 1
+        i = i + 1
+        text = canvas.create_text(0, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{world_time()}")
+        device_elements.append((None, text))
     # Schedule the next update
     window.after(POLL_INTERVAL_MS, update_metrics)
 
