@@ -9,6 +9,7 @@ import time
 import traceback
 import pytz
 
+
 DEBUG = False
 # Load the settings from settings.yaml
 with open('settings.yaml', 'r') as file:
@@ -73,20 +74,76 @@ WEB_SERVER = settings['WEB_SERVER']
 WEB_SERVER_ENABLED = settings['WEB_SERVER_ENABLED']
 WEB_RESPONSE_CODE = settings['WEB_RESPONSE_CODE']
 WEB_SERVER_NAME = settings['WEB_SERVER_NAME']
-
-from datetime import datetime
-import pytz  # Import the pytz module
+#Weather settings
+WEATHER_ENABLED = settings['WEATHER_ENABLED']
+WEATHER_ZIP_CODE = settings['WEATHER_ZIP_CODE']
+WEATHER_API_KEY = settings['WEATHER_API_KEY']
+WEATHER_PRECIPITATION_WARNING = settings['WEATHER_PRECIPITATION_WARNING']
+WEATHER_HIGH_TEMP_WARNING = settings['WEATHER_HIGH_TEMP_WARNING']
+WEATHER_LOW_TEMP_WARNING = settings['WEATHER_LOW_TEMP_WARNING']
+last_weather_fetch_time = 0
 
 def world_time():
     # Use pytz.timezone to get tzinfo objects based on timezone strings
     chicago_time = datetime.now().astimezone(pytz.timezone('America/Chicago'))
     newyork_time = datetime.now().astimezone(pytz.timezone('America/New_York'))
-    london_time = datetime.now().astimezone(pytz.timezone('Europe/London'))
     tokyo_time = datetime.now().astimezone(pytz.timezone('Asia/Tokyo'))
     losangeles_time = datetime.now().astimezone(pytz.timezone('America/Los_Angeles'))
     month_day_year = datetime.now().strftime('%m/%d/%Y')
     return f"{month_day_year} | ET: {newyork_time.strftime('%H:%M')}  | CT: {chicago_time.strftime('%H:%M')}  | PT: {losangeles_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
 
+weather_data = {}
+def fetch_weather():
+    global last_weather_fetch_time, weather_data
+    if time.time() - last_weather_fetch_time < 300:
+        return weather_data
+    last_weather_fetch_time = time.time()
+    # Make a request to the weather API
+    url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_API_KEY}&q={WEATHER_ZIP_CODE}&days=1&aqi=yes&alerts=yes'
+    response = requests.get(url)
+
+    # Check if the request was successful
+    if response.status_code == 200:
+        # Parse the JSON response
+        data = response.json()
+
+        # Extract the current temperature, high, low, and chance of rain
+        # Pretty print the JSON response
+        # Check if any alerts exist
+        if 'alerts' in data and 'alert' in data['alerts'] and len(data['alerts']['alert']) > 0:
+            alert = data['alerts']['alert'][0]['event']
+        else:
+            alert = False
+        
+        current_temp = data['current']['temp_f']
+        high_temp = data['forecast']['forecastday'][0]['day']['maxtemp_f']
+        low_temp = data['forecast']['forecastday'][0]['day']['mintemp_f']
+        chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain']
+        chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow']
+
+        # Set the color based on the weather conditions
+        color = 'green'
+        if chance_of_rain > WEATHER_PRECIPITATION_WARNING:
+            color = 'yellow'
+        elif high_temp > WEATHER_HIGH_TEMP_WARNING:
+            color = 'yellow'
+        elif low_temp < WEATHER_LOW_TEMP_WARNING:
+            color = 'yellow'
+
+        if alert:
+            color = 'red'
+
+        weather_data = {
+            'alert': alert,
+            'current_temp': current_temp,
+            'high_temp': high_temp,
+            'low_temp': low_temp,
+            'chance_of_rain': chance_of_rain,
+            'chance_of_snow': chance_of_snow,
+            'color': color
+        }
+        return weather_data
+    
 # check if the web server is giving the correct response code
 def check_web_server():
     start_time = time.time()
@@ -556,9 +613,41 @@ def update_metrics():
            
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Plex: {active_sessions}")
             device_elements.append((shape, text))
-        # Add the uptime
+
+        # Add a row of the weather
+        if WEATHER_ENABLED:
+            try:
+                row = row + 1
+                i = i + 1
+                weather = fetch_weather()
+                if weather['chance_of_snow'] > weather['chance_of_rain']:
+                    precip = f'{weather['chance_of_snow']}% Snow'
+                else:
+                    precip = f'{weather['chance_of_rain']}% Rain'
+                if weather['alert']:
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                    msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: {msg}")
+                else:
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
+                    msg = f'{weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: {msg}")
+                device_elements.append((shape, text))
+            except Exception as e:
+                print("Error occurred in processing weather")
+                print(e)
+                traceback.print_exc()
+                row = row + 1
+                i = i + 1
+                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: Error fetching weather")
+                device_elements.append((shape, text))
+        
+        # Add a row of the world time
         row = row + 1
         i = i + 1
+        text = canvas.create_text(0, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='lightgray', text=f"{world_time()}")
+        device_elements.append((None, text))
 
         # Remember the window's current position and size
         x = window.winfo_x()
@@ -571,11 +660,9 @@ def update_metrics():
         total_height = HEIGHT
         window.geometry(f'{WIDTH}x{total_height}+{window.winfo_x()}+{window.winfo_y()}')
         canvas.config(width=WIDTH, height=total_height)
-        # Add a row of the world time
-        row = row + 1
-        i = i + 1
-        text = canvas.create_text(0, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{world_time()}")
-        device_elements.append((None, text))
+        
+        
+
     # Schedule the next update
     window.after(POLL_INTERVAL_MS, update_metrics)
 
