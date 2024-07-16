@@ -627,11 +627,11 @@ def update_metrics():
                 if weather['alert']:
                     shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
                     msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: {msg}")
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
                 else:
                     shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
                     msg = f'{weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: {msg}")
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
                 device_elements.append((shape, text))
             except Exception as e:
                 print("Error occurred in processing weather")
