@@ -30,9 +30,12 @@ UTIL_SAMPLES = settings['UTIL_SAMPLES']
 MAX_CPU_MHZ = settings['MAX_CPU_MHZ']
 REMOTE_SERVER = settings['REMOTE_SERVER']
 REMOTE_PORT = settings['REMOTE_PORT']
+# Set the window to always be on top
+ALWAYS_ON_TOP = settings['ALWAYS_ON_TOP']
 # Set width of the window
 HEIGHT = settings['HEIGHT']
 WIDTH = settings['WIDTH']
+
 if HEIGHT == 0 and WIDTH == 0:
     # Create a temporary Tkinter window
     temp_window = Tk()
@@ -315,7 +318,8 @@ def poll_libre():
 # Create a new Tkinter window
 window = Tk()
 window.attributes('-alpha', 1.0)
-window.attributes('-topmost', 1)  # This line keeps the window on top
+if ALWAYS_ON_TOP:
+    window.attributes('-topmost', 1)  # This line keeps the window on top
  
 # Hide the window bar
 window.overrideredirect(True)
@@ -324,9 +328,6 @@ window.overrideredirect(True)
 start_x = None
 start_y = None
 
-
-# Make the window always stay on top
-window.attributes('-topmost', 1)
 
 # Create a canvas to draw on
 canvas = Canvas(window, width=WIDTH, height=HEIGHT, bd=0, highlightthickness=0, bg='black')
@@ -348,9 +349,6 @@ canvas.pack()
 #     window.geometry('+%d+%d' % (0, 0))
 # else:
 #     window.geometry('+%d+%d' % (X_LOCATION, Y_LOCATION))
-
-# Keep the window always on top, but without taking focus
-window.attributes('-topmost', 1)
 
 # Prevent the window from taking focus when it is initially created
 window.overrideredirect(True)
@@ -378,7 +376,8 @@ def update_metrics():
                 window.geometry('+%d+%d' % (0, window.winfo_screenheight() - window.winfo_height() - 180))
 
             # Make the window always stay on top, but without taking focus
-            window.attributes('-topmost', 1)
+            if ALWAYS_ON_TOP:
+                window.attributes('-topmost', 1)
 
             # Prevent the window from taking focus when it is initially created
             window.overrideredirect(True)
