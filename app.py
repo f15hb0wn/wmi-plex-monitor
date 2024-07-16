@@ -315,141 +315,154 @@ util_poll_samples = []
 def update_metrics():
     global pause_polling
     if not pause_polling:
-        # Fetch the temperatures
-        global temps, utils, fan_speeds, net, disk
-        poll_success = poll_wmi()
-        if not poll_success:
-            wmi_connect()
+        try:
+            # Fetch the temperatures
+            global temps, utils, fan_speeds, net, disk
+            poll_wmi()
+
+            # Check if the window is outside the screen's dimensions
+            if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
+                # If it is, reset the window's position to the starting position
+                window.geometry('+%d+%d' % (0, window.winfo_screenheight() - window.winfo_height() - 180))
+
+            # Make the window always stay on top, but without taking focus
+            window.attributes('-topmost', 1)
+
+            # Prevent the window from taking focus when it is initially created
+            window.overrideredirect(True)
+            
+            # Set the canvas height based on the number of GPUs
+            canvas.config(width=WIDTH, height=HEIGHT)
+            
+            # Set the window height based on the number of GPUs
+            window.geometry(f'{WIDTH}x{HEIGHT}+{window.winfo_x()}+{window.winfo_y()}')
+            window.attributes('-alpha', 1.0)
+        except:
+            print("Error occurred preparing canvas")
             time.sleep(1)
-            return None    
-        # Check if the window is outside the screen's dimensions
-        if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
-            # If it is, reset the window's position to the starting position
-            window.geometry('+%d+%d' % (0, window.winfo_screenheight() - window.winfo_height() - 180))
+            return None
+        try:
+            # Remove the old Device elements
+            for circle, text in device_elements:
+                canvas.delete(circle)
+                canvas.delete(text)
+            device_elements.clear()
+            net_row = 0
+            # Calculate the average temperature for each GPU and create the new elements
+            header_made = False
+            for i, (device_name, temp) in enumerate(temps):
+                if not header_made:
+                    row = i
+                    header_made = True
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
+                    device_elements.append((text, None))
+                row = i + 1
+                fan_speed = -1
+                for fan in fan_speeds:
+                    if fan[0] == device_name:
+                        fan_speed = fan[1]
+                # Set util samples if not set
+                if len(util_poll_samples) <= i:
+                    util_poll_samples.append(0)
 
-        # Make the window always stay on top, but without taking focus
-        window.attributes('-topmost', 1)
+                # If this is a new GPU, create a new deque for it
+                if device_name not in last_n_temps:
+                    last_n_temps[device_name] = deque(maxlen=NUM_SAMPLES)
+                
+                # Append the temperature to the deque
+                last_n_temps[device_name].append(temp)
+                
+                # Calculate the average temperature and round it to the nearest whole number
+                avg_temp = round(sum(last_n_temps[device_name]) / len(last_n_temps[device_name]))
+                
+                # Determine the color of the circle based on the average temperature
+                if avg_temp < CAUTION_TEMP:
+                    color = 'green'
+                elif avg_temp <= DANGER_TEMP:
+                    color = 'yellow'
+                else:
+                    color = 'red'
+                
+                # Create the circle and text elements with the color determined above
+                try:         
+                    if utils[i][1] > UTILIZATION_CAUTION:
+                        util_poll_samples[i] = util_poll_samples[i] + 1
+                        if color == 'red':
+                            # Heat overrides utilization warning
+                            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                        else:
+                            if util_poll_samples[i] > UTIL_SAMPLES:        
+                                util_color = 'yellow'
+                                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=util_color)
+                            else:
+                                shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                    else:
+                        shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                        util_poll_samples[i] = util_poll_samples[i] - 1
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"{device_name}\t|     {avg_temp}°  |  {fan_speed}%\t|\t{utils[i][1]}%")
 
-        # Prevent the window from taking focus when it is initially created
-        window.overrideredirect(True)
-        
-        # Set the canvas height based on the number of GPUs
-        canvas.config(width=WIDTH, height=ROW_HEIGHT * (len(temps)+2))
-        
-        # Set the window height based on the number of GPUs
-        window.geometry(f'{WIDTH}x{HEIGHT}+{window.winfo_x()}+{window.winfo_y()}')
-        window.attributes('-alpha', 1.0)
-
-        # Remove the old Device elements
-        for circle, text in device_elements:
-            canvas.delete(circle)
-            canvas.delete(text)
-        device_elements.clear()
-        
-        net_row = 0
-        # Calculate the average temperature for each GPU and create the new elements
-        header_made = False
-        for i, (device_name, temp) in enumerate(temps):
-            if not header_made:
-                row = i
-                header_made = True
-                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
-                device_elements.append((text, None))
+                    # Add the elements to the list
+                    device_elements.append((shape, text))
+                except:
+                    continue
+                net_row = i
+            # Add Network Up and Down
+            i = net_row + 1
             row = i + 1
-            fan_speed = -1
-            for fan in fan_speeds:
-                if fan[0] == device_name:
-                    fan_speed = fan[1]
-            # Set util samples if not set
             if len(util_poll_samples) <= i:
                 util_poll_samples.append(0)
-
-            # If this is a new GPU, create a new deque for it
-            if device_name not in last_n_temps:
-                last_n_temps[device_name] = deque(maxlen=NUM_SAMPLES)
-            
-            # Append the temperature to the deque
-            last_n_temps[device_name].append(temp)
-            
-            # Calculate the average temperature and round it to the nearest whole number
-            avg_temp = round(sum(last_n_temps[device_name]) / len(last_n_temps[device_name]))
-            
-            # Determine the color of the circle based on the average temperature
-            if avg_temp < CAUTION_TEMP:
-                color = 'green'
-            elif avg_temp <= DANGER_TEMP:
-                color = 'yellow'
-            else:
-                color = 'red'
-            
-            # Create the circle and text elements with the color determined above
-            try:         
-                if utils[i][1] > UTILIZATION_CAUTION:
+            color = 'green'
+            total_net = net[0] + net[1]
+            if total_net > 0:
+                if total_net > NETOPS_CAUTION:
                     util_poll_samples[i] = util_poll_samples[i] + 1
-                    if color == 'red':
-                        # Heat overrides utilization warning
-                        shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                    else:
-                        if util_poll_samples[i] > UTIL_SAMPLES:        
-                            util_color = 'yellow'
-                            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=util_color)
-                        else:
-                            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                else:
-                    shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                    util_poll_samples[i] = util_poll_samples[i] - 1
-                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"{device_name}\t|     {avg_temp}°  |  {fan_speed}%\t|\t{utils[i][1]}%")
+                    if util_poll_samples[i] > UTIL_SAMPLES:
+                        color = 'yellow'
+            else:
+                if total_net == 0:
+                    util_poll_samples[i] = util_poll_samples[i] + 1
+                    if util_poll_samples[i] > UTIL_SAMPLES:
+                        color = 'blue'
+            if total_net < NETOPS_CAUTION and total_net > 0:
+                util_poll_samples[i] = util_poll_samples[i] - 1
+            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t|\t\t| {net[0]}Mb↑ {net[1]}Mb↓")
+            device_elements.append((shape, text))
 
-                # Add the elements to the list
-                device_elements.append((shape, text))
-            except:
-                continue
-            net_row = i
-        # Add Network Up and Down
-        i = net_row + 1
-        row = i + 1
-        if len(util_poll_samples) <= i:
-            util_poll_samples.append(0)
-        color = 'green'
-        total_net = net[0] + net[1]
-        if total_net > 0:
-            if total_net > NETOPS_CAUTION:
-                util_poll_samples[i] = util_poll_samples[i] + 1
-                if util_poll_samples[i] > UTIL_SAMPLES:
-                    color = 'yellow'
-        else:
-            if total_net == 0:
-                util_poll_samples[i] = util_poll_samples[i] + 1
-                if util_poll_samples[i] > UTIL_SAMPLES:
-                    color = 'blue'
-        if total_net < NETOPS_CAUTION and total_net > 0:
-            util_poll_samples[i] = util_poll_samples[i] - 1
-        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t|\t\t| {net[0]}Mb↑ {net[1]}Mb↓")
-        device_elements.append((shape, text))
-
-        #Add Disk Ops
-        i = i + 1
-        row = i + 1
-        if len(util_poll_samples) <= i:
-            util_poll_samples.append(0)
-        color = 'green'
-        total_disk = disk[0] + disk[1]
-        if total_disk > 0:
-            if total_net > DISKOPS_CAUTION:
-                util_poll_samples[i] = util_poll_samples[i] + 1
-                if util_poll_samples[i] > UTIL_SAMPLES:
-                    color = 'yellow'
-        else:
-            if total_disk == 0:
-                util_poll_samples[i] = util_poll_samples[i] + 1
-                if util_poll_samples[i] > UTIL_SAMPLES:
-                    color = 'blue'
-        if total_disk < DISKOPS_CAUTION and total_disk > 0:
-            util_poll_samples[i] = util_poll_samples[i] - 1
-        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t|\t\t| {disk[0]}MB↑ {disk[1]}MB↓")
-        device_elements.append((shape, text))
+            #Add Disk Ops
+            i = i + 1
+            row = i + 1
+            if len(util_poll_samples) <= i:
+                util_poll_samples.append(0)
+            color = 'green'
+            total_disk = disk[0] + disk[1]
+            if total_disk > 0:
+                if total_net > DISKOPS_CAUTION:
+                    util_poll_samples[i] = util_poll_samples[i] + 1
+                    if util_poll_samples[i] > UTIL_SAMPLES:
+                        color = 'yellow'
+            else:
+                if total_disk == 0:
+                    util_poll_samples[i] = util_poll_samples[i] + 1
+                    if util_poll_samples[i] > UTIL_SAMPLES:
+                        color = 'blue'
+            if total_disk < DISKOPS_CAUTION and total_disk > 0:
+                util_poll_samples[i] = util_poll_samples[i] - 1
+            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t|\t\t| {disk[0]}MB↑ {disk[1]}MB↓")
+            device_elements.append((shape, text))
+        except:
+            print("Error occurred in processing main wmipoll")
+            # Remove the old Device elements
+            for circle, text in device_elements:
+                canvas.delete(circle)
+                canvas.delete(text)
+            device_elements.clear()
+            i = 0
+            row = 1
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
+            device_elements.append((text, None))
+        
         # Check if the web server is giving the correct response code
         if WEB_SERVER_ENABLED:
             row = row + 1
@@ -460,7 +473,7 @@ def update_metrics():
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Web Server ({WEB_SERVER_NAME})")
             device_elements.append((shape, text))
-        
+
         # Check if there are any active Plex sessions
         if PLEX_ENABLED:
             row = row + 1
@@ -479,7 +492,6 @@ def update_metrics():
         # Add the uptime
         row = row + 1
         i = i + 1
-
 
         # Assuming uptime_wmi() returns a string like '20240714130432.500000-300'
         uptime_str = uptime_wmi()
