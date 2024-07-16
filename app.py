@@ -73,6 +73,7 @@ WEB_SERVER_NAME = settings['WEB_SERVER_NAME']
 
 # check if the web server is giving the correct response code
 def check_web_server():
+    start_time = time.time()
     try:
         response = requests.get(WEB_SERVER, timeout=1)
     except Exception as e:
@@ -82,9 +83,13 @@ def check_web_server():
         print(f"Web server returned {response.status_code} instead of {WEB_RESPONSE_CODE}")
         return False
     else:
+        end_time = time.time()
+        print(f"Web server check took {end_time - start_time} seconds")
         return True
 
+
 def get_active_plex_sessions():
+    start_time = time.time()
     try:
         plex_api = PlexServer(PLEX_SERVER, PLEX_TOKEN)
     except Exception as e:
@@ -99,6 +104,8 @@ def get_active_plex_sessions():
     if len(sessions) == 0:
         return "Idle"
     else:
+        end_time = time.time()
+        print(f"Plex check took {end_time - start_time} seconds")
         active_users_text = ', '.join(active_users)
         return active_users_text
 
@@ -136,6 +143,7 @@ fan_speeds = []
 net = []
 disk = []
 def poll_wmi():
+    start_time = time.time()
     global temps, utils, fan_speeds, net, disk
     # Connect to the OpenHardwareMonitor namespace on the remote server
     global w
@@ -249,12 +257,17 @@ def poll_wmi():
     d_down = round(d_down / 1024 / 1024)
     disk.append(d_up)
     disk.append(d_down)
+    end_time = time.time()
+    print(f"Poll took {end_time - start_time} seconds")
     return True
 
 def uptime_wmi():
+    start_time = time.time()
     global u
     try:
         for os in u.Win32_OperatingSystem():
+            end_time = time.time()
+            print(f"Uptime check took {end_time - start_time} seconds")
             return os.LastBootUpTime
     except:
         return False
