@@ -261,13 +261,20 @@ def poll_libre():
     countb=0
     countc=0
     countd=0
+    gpu_id = 0
     for i in OHW_DICT['Children'][0]['Children']:
         parent = OHW_DICT['Children'][0]['Children'][counta]['Text']
+        if parent == 'NVIDIA GeForce RTX 4090':
+            parent = 'NVIDIA GeForce RTX 4090 #' + str(gpu_id)
+            gpu_id = gpu_id + 1
         for o in OHW_DICT['Children'][0]['Children'][counta]['Children']:
             if counta > 0:
                 sensor_type = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Text']
             else:
                 parent = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Text']
+                if parent == 'NVIDIA GeForce RTX 4090':
+                    parent = 'NVIDIA GeForce RTX 4090 #' + str(gpu_id)
+                    gpu_id = gpu_id + 1
             for p in OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children']:
                 if counta > 0:
                     data = OHW_DICT['Children'][0]['Children'][counta]['Children'][countb]['Children'][countc]
@@ -309,10 +316,10 @@ def poll_libre():
         for sensor in sensors:
             #Temperature sensors
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "GPU Core":
-                temps.append(("GPU-" + str(gpu_id), sensor['Value']))
                 if sensor['Parent'] not in gpus:
                     gpus.append(sensor['Parent'])
                 gpu_id = gpus.index(sensor['Parent'])
+                temps.append(("GPU-" + str(gpu_id), sensor['Value']))
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "CPU Socket":
                 cpu_temp = sensor['Value']
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "System":
