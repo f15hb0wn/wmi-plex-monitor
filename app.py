@@ -564,7 +564,7 @@ def update_metrics():
             if total_net < NETOPS_CAUTION and total_net > 0:
                 util_poll_samples[i] = util_poll_samples[i] - 1
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up: {net[0]}Mb\t| Down: {net[1]}Mb")
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up:\t{net[0]}Mb\t| Down: {net[1]}Mb")
             device_elements.append((shape, text))
 
             #Add Disk Ops
@@ -591,7 +591,7 @@ def update_metrics():
             if total_disk < DISKOPS_CAUTION and total_disk > 0:
                 util_poll_samples[i] = util_poll_samples[i] - 1
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read: {disk[0]}MB\t| Write: {disk[1]}MB")
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
             device_elements.append((shape, text))
         except Exception as e:
             print("Error occurred in processing libre data")
@@ -677,7 +677,7 @@ def update_metrics():
         # Add a row of the world time
         row = row + 1
         i = i + 1
-        text = canvas.create_text(0, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='lightgray', text=f"{world_time()}")
+        text = canvas.create_text(0, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='lightblue', text=f"{world_time()}")
         device_elements.append((None, text))
 
         # Remember the window's current position and size
