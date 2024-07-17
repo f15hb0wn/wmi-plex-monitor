@@ -89,8 +89,9 @@ def world_time():
     newyork_time = datetime.now().astimezone(pytz.timezone('America/New_York'))
     tokyo_time = datetime.now().astimezone(pytz.timezone('Asia/Tokyo'))
     losangeles_time = datetime.now().astimezone(pytz.timezone('America/Los_Angeles'))
-    month_day_year = datetime.now().strftime('%m/%d/%Y')
-    return f"{month_day_year} | ET: {newyork_time.strftime('%H:%M')}  | CT: {chicago_time.strftime('%H:%M')}  | PT: {losangeles_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
+    hawaii_time = datetime.now().astimezone(pytz.timezone('Pacific/Honolulu'))
+    month_day_year = datetime.now().strftime('%a %m/%d')
+    return f"{month_day_year} | ET: {newyork_time.strftime('%H:%M')}  | CT: {chicago_time.strftime('%H:%M')}  | PT: {losangeles_time.strftime('%H:%M')} | HI: {hawaii_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
 
 weather_data = {}
 def fetch_weather():
