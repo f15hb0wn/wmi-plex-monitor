@@ -564,7 +564,7 @@ def update_metrics():
             if total_net < NETOPS_CAUTION and total_net > 0:
                 util_poll_samples[i] = util_poll_samples[i] - 1
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t|\t\t| {net[0]}MbUp {net[1]}MbDn")
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up: {net[0]}Mb\t| Down: {net[1]}Mb")
             device_elements.append((shape, text))
 
             #Add Disk Ops
@@ -591,7 +591,7 @@ def update_metrics():
             if total_disk < DISKOPS_CAUTION and total_disk > 0:
                 util_poll_samples[i] = util_poll_samples[i] - 1
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t|\t\t| {disk[0]}MBUp {disk[1]}MBDn")
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read: {disk[0]}MB\t| Write: {disk[1]}MB")
             device_elements.append((shape, text))
         except Exception as e:
             print("Error occurred in processing libre data")
