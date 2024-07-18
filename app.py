@@ -638,9 +638,9 @@ def update_metrics():
                     if total_disk == 0:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
-                if total_disk < DISKOPS_CAUTION:
+                if total_disk < DISKOPS_CAUTION and util_poll_samples[i] > 0:
                     util_poll_samples[i] = util_poll_samples[i] - 1
-                if total_disk > 0:
+                if total_disk > 0 and cold_poll_samples[i] > 0:
                     cold_poll_samples[i] = cold_poll_samples[i] - 1
                 # Set the color based on the total network utilization poll thresholds        
                 if cold_poll_samples[i] > UTIL_SAMPLES and total_disk == 0:
