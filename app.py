@@ -559,17 +559,17 @@ def update_metrics():
                     if fan_speed < 1:
                         color = 'red'
                     util_color = 'green'
-                    if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < NUM_SAMPLES:
+                    if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < UTIL_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
-                    if utils[i][1] == 0 and cold_poll_samples[i] < NUM_SAMPLES:
+                    if utils[i][1] == 0 and cold_poll_samples[i] < UTIL_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                     if utils[i][1] < UTILIZATION_CAUTION and util_poll_samples[i] > 0:
                         util_poll_samples[i] = util_poll_samples[i] - 1
                     if utils[i][1] > 0 and cold_poll_samples[i] > 0:
                         cold_poll_samples[i] = cold_poll_samples[i] - 1
-                    if cold_poll_samples[i] > UTIL_SAMPLES and utils[i][1] == 0:
+                    if cold_poll_samples[i] >= UTIL_SAMPLES and utils[i][1] == 0:
                         util_color = 'blue'
-                    if util_poll_samples[i] > UTIL_SAMPLES:        
+                    if util_poll_samples[i] >= UTIL_SAMPLES:        
                         util_color = 'yellow'
                     if color != 'red' and color != 'yellow':
                         color = util_color
@@ -599,10 +599,10 @@ def update_metrics():
                     total_net = 0
                     net = [0, 0]
                 if total_net > 0:
-                    if total_net > NETOPS_CAUTION and util_poll_samples[i] < NUM_SAMPLES:
+                    if total_net > NETOPS_CAUTION and util_poll_samples[i] < UTIL_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
                 else:
-                    if total_net == 0 and cold_poll_samples[i] < NUM_SAMPLES:
+                    if total_net == 0 and cold_poll_samples[i] < UTIL_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
                 if total_net < NETOPS_CAUTION and util_poll_samples[i] > 0:
@@ -610,9 +610,9 @@ def update_metrics():
                 if total_net > 0 and cold_poll_samples[i] > 0:
                     cold_poll_samples[i] = cold_poll_samples[i] - 1
                 # Set the color based on the total network utilization poll thresholds        
-                if cold_poll_samples[i] > UTIL_SAMPLES and total_net == 0:
+                if cold_poll_samples[i] >= UTIL_SAMPLES and total_net == 0:
                     color = 'blue'
-                if util_poll_samples[i] > UTIL_SAMPLES:
+                if util_poll_samples[i] >= UTIL_SAMPLES:
                     color = 'yellow'
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up:\t{net[0]}Mb\t| Down: {net[1]}Mb")
@@ -632,10 +632,10 @@ def update_metrics():
                     total_disk = 0
                     disk = [0, 0]
                 if total_disk > 0:
-                    if total_disk > DISKOPS_CAUTION and util_poll_samples[i] < NUM_SAMPLES:
+                    if total_disk > DISKOPS_CAUTION and util_poll_samples[i] < UTIL_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
                 else:
-                    if total_disk == 0 and cold_poll_samples[i] < NUM_SAMPLES:
+                    if total_disk == 0 and cold_poll_samples[i] < UTIL_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
                 if total_disk < DISKOPS_CAUTION and util_poll_samples[i] > 0:
@@ -643,9 +643,9 @@ def update_metrics():
                 if total_disk > 0 and cold_poll_samples[i] > 0:
                     cold_poll_samples[i] = cold_poll_samples[i] - 1
                 # Set the color based on the total network utilization poll thresholds        
-                if cold_poll_samples[i] > UTIL_SAMPLES and total_disk == 0:
+                if cold_poll_samples[i] >= UTIL_SAMPLES and total_disk == 0:
                     color = 'blue'
-                if util_poll_samples[i] > UTIL_SAMPLES:
+                if util_poll_samples[i] >= UTIL_SAMPLES:
                     color = 'yellow'
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
