@@ -112,11 +112,16 @@ def fetch_weather():
         # Pretty print the JSON response
         # Check if any alerts exist
         alert = False
+        alert_level = 0
         if 'alerts' in data and 'alert' in data['alerts'] and len(data['alerts']['alert']) > 0:
             for event in data['alerts']['alert']:
                 lower_case = event['event'].lower()
-                if 'warning' in event or 'watch' in lower_case:
+                if 'warning' in lower_case or 'alert' in lower_case or 'emergency' in lower_case:
                     alert = event['event']
+                    alert_level = 2
+                elif 'watch' in lower_case and alert_level < 2:
+                    alert = event['event']
+                    alert_level = 1
 
         
         current_temp = data['current']['temp_f']
@@ -146,7 +151,10 @@ def fetch_weather():
         elif low_temp < WEATHER_LOW_TEMP_WARNING:
             color = 'yellow'
 
-        if alert:
+        if alert_level == 1:
+            color = 'yellow'
+
+        if alert_level == 2:
             color = 'red'
 
         weather_data = {
