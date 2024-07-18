@@ -558,24 +558,25 @@ def update_metrics():
                     # Alarm on dead fan
                     if fan_speed < 1:
                         color = 'red'
+                    util_color = 'green'
+                    if utils[i][1] > UTILIZATION_CAUTION:
+                        util_poll_samples[i] = util_poll_samples[i] + 1
+                    if utils[i][1] == 0:
+                        cold_poll_samples[i] = cold_poll_samples[i] + 1
+                    if utils[i][1] < UTILIZATION_CAUTION and util_poll_samples[i] > 0:
+                        util_poll_samples[i] = util_poll_samples[i] - 1
+                    if utils[i][1] > 0 and cold_poll_samples[i] > 0:
+                        cold_poll_samples[i] = cold_poll_samples[i] - 1
+                    if cold_poll_samples[i] > UTIL_SAMPLES and utils[i][1] == 0:
+                        util_color = 'blue'
+                    if util_poll_samples[i] > UTIL_SAMPLES:        
+                        util_color = 'yellow'
+                    if color != 'red' and color != 'yellow':
+                        color = util_color
                     # Create the circle and text elements with the color determined above
                     try:         
-                        if utils[i][1] > UTILIZATION_CAUTION:
-                            util_poll_samples[i] = util_poll_samples[i] + 1
-                            if color == 'red':
-                                # Heat overrides utilization warning
-                                shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                            else:
-                                if util_poll_samples[i] > UTIL_SAMPLES:        
-                                    util_color = 'yellow'
-                                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=util_color)
-                                else:
-                                    shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                        else:
-                            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                            util_poll_samples[i] = util_poll_samples[i] - 1
+                        shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
                         text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"{device_name}\t|     {avg_temp}°  |  {fan_speed}%\t|\t{utils[i][1]}%")
-
                         # Add the elements to the list
                         device_elements.append((shape, text))
                     except Exception as e:
@@ -604,9 +605,9 @@ def update_metrics():
                     if total_net == 0:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
-                if total_net < NETOPS_CAUTION:
+                if total_net < NETOPS_CAUTION and util_poll_samples[i] > 0:
                     util_poll_samples[i] = util_poll_samples[i] - 1
-                if total_net > 0:
+                if total_net > 0 and cold_poll_samples[i] > 0:
                     cold_poll_samples[i] = cold_poll_samples[i] - 1
                 # Set the color based on the total network utilization poll thresholds        
                 if cold_poll_samples[i] > UTIL_SAMPLES and total_net == 0:
