@@ -632,7 +632,7 @@ def update_metrics():
                     total_disk = 0
                     disk = [0, 0]
                 if total_disk > 0:
-                    if total_net > DISKOPS_CAUTION:
+                    if total_disk > DISKOPS_CAUTION:
                         util_poll_samples[i] = util_poll_samples[i] + 1
                 else:
                     if total_disk == 0:
