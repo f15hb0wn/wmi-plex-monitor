@@ -91,7 +91,7 @@ def world_time():
     losangeles_time = datetime.now().astimezone(pytz.timezone('America/Los_Angeles'))
     hawaii_time = datetime.now().astimezone(pytz.timezone('Pacific/Honolulu'))
     month_day_year = datetime.now().strftime('%a %m/%d')
-    return f"{month_day_year} | ET: {newyork_time.strftime('%H:%M')}  | CT: {chicago_time.strftime('%H:%M')}  | PT: {losangeles_time.strftime('%H:%M')} | HI: {hawaii_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
+    return f"{month_day_year} {chicago_time.strftime('%H:%M:%S')}  | ET: {newyork_time.strftime('%H:%M')} | PT: {losangeles_time.strftime('%H:%M')} | HI: {hawaii_time.strftime('%H:%M')} | JP: {tokyo_time.strftime('%H:%M')}"
 
 weather_data = {}
 def fetch_weather():
@@ -266,8 +266,19 @@ def poll_libre():
     d_up = 0
     d_down = 0
     # Process temps into a list of tuples
-    OHW_ADDRESS = f"http://{REMOTE_SERVER}:{REMOTE_PORT}/data.json"
-    OHW_DICT = json.loads(requests.get(OHW_ADDRESS).text)
+    try:
+        OHW_ADDRESS = f"http://{REMOTE_SERVER}:{REMOTE_PORT}/data.json"
+        libre_data = requests.get(OHW_ADDRESS).text
+    except:
+        print("Error occurred in fetching LibreHW data")
+        return False
+    try:
+        OHW_DICT = json.loads(libre_data)
+    except Exception as e:
+        print("Error occurred in loading LibreHW data")
+        print(e)
+        traceback.print_exc()
+        return False
     sensors = []
     counta=0
     countb=0
@@ -457,7 +468,7 @@ def update_metrics():
         try:
             # Fetch the temperatures
             global temps, utils, fan_speeds, net, disk
-            poll_libre()
+            poll_status = poll_libre()
 
             # Check if the window is outside the screen's dimensions
             if window.winfo_x() < 0 or window.winfo_x() > window.winfo_screenwidth() or window.winfo_y() < 0 or window.winfo_y() > window.winfo_screenheight():
@@ -482,143 +493,154 @@ def update_metrics():
             print(e)
             time.sleep(1)
             return None
-        try:
-            # Remove the old Device elements
+        if not poll_status:
             for circle, text in device_elements:
                 canvas.delete(circle)
                 canvas.delete(text)
             device_elements.clear()
-            net_row = 0
-            # Calculate the average temperature for each GPU and create the new elements
-            header_made = False
-            for i, (device_name, temp) in enumerate(temps):
-                if not header_made:
-                    row = i
-                    header_made = True
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
-                    device_elements.append((text, None))
+            row = 1
+            i = 0
+            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill="red")
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Libre Connection Error")
+            device_elements.append((shape, text))
+        else:
+            try:
+                # Remove the old Device elements
+                for circle, text in device_elements:
+                    canvas.delete(circle)
+                    canvas.delete(text)
+                device_elements.clear()
+                net_row = 0
+                # Calculate the average temperature for each GPU and create the new elements
+                header_made = False
+                for i, (device_name, temp) in enumerate(temps):
+                    if not header_made:
+                        row = i
+                        header_made = True
+                        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
+                        device_elements.append((text, None))
+                    row = i + 1
+                    fan_speed = -1
+                    for fan in fan_speeds:
+                        if fan[0] == device_name:
+                            fan_speed = fan[1]
+                    # Set util samples if not set
+                    if len(util_poll_samples) <= i:
+                        util_poll_samples.append(0)
+
+                    # If this is a new GPU, create a new deque for it
+                    if device_name not in last_n_temps:
+                        last_n_temps[device_name] = deque(maxlen=NUM_SAMPLES)
+                    
+                    # Append the temperature to the deque
+                    last_n_temps[device_name].append(temp)
+                    
+                    # Calculate the average temperature and round it to the nearest whole number
+                    avg_temp = round(sum(last_n_temps[device_name]) / len(last_n_temps[device_name]))
+                    
+                    # Determine the color of the circle based on the average temperature
+                    if avg_temp < CAUTION_TEMP:
+                        color = 'green'
+                    elif avg_temp <= DANGER_TEMP:
+                        color = 'yellow'
+                    else:
+                        color = 'red'
+                    # Alarm on dead fan
+                    if fan_speed < 1:
+                        color = 'red'
+                    # Create the circle and text elements with the color determined above
+                    try:         
+                        if utils[i][1] > UTILIZATION_CAUTION:
+                            util_poll_samples[i] = util_poll_samples[i] + 1
+                            if color == 'red':
+                                # Heat overrides utilization warning
+                                shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                            else:
+                                if util_poll_samples[i] > UTIL_SAMPLES:        
+                                    util_color = 'yellow'
+                                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=util_color)
+                                else:
+                                    shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                        else:
+                            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                            util_poll_samples[i] = util_poll_samples[i] - 1
+                        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"{device_name}\t|     {avg_temp}°  |  {fan_speed}%\t|\t{utils[i][1]}%")
+
+                        # Add the elements to the list
+                        device_elements.append((shape, text))
+                    except Exception as e:
+                        print("Error occurred in processing main temps")
+                        print(e)
+                        traceback.print_exc()
+                        continue
+                    net_row = i
+                # Add Network Up and Down
+                i = net_row + 1
                 row = i + 1
-                fan_speed = -1
-                for fan in fan_speeds:
-                    if fan[0] == device_name:
-                        fan_speed = fan[1]
-                # Set util samples if not set
                 if len(util_poll_samples) <= i:
                     util_poll_samples.append(0)
-
-                # If this is a new GPU, create a new deque for it
-                if device_name not in last_n_temps:
-                    last_n_temps[device_name] = deque(maxlen=NUM_SAMPLES)
-                
-                # Append the temperature to the deque
-                last_n_temps[device_name].append(temp)
-                
-                # Calculate the average temperature and round it to the nearest whole number
-                avg_temp = round(sum(last_n_temps[device_name]) / len(last_n_temps[device_name]))
-                
-                # Determine the color of the circle based on the average temperature
-                if avg_temp < CAUTION_TEMP:
-                    color = 'green'
-                elif avg_temp <= DANGER_TEMP:
-                    color = 'yellow'
-                else:
-                    color = 'red'
-                # Alarm on dead fan
-                if fan_speed < 1:
-                    color = 'red'
-                # Create the circle and text elements with the color determined above
-                try:         
-                    if utils[i][1] > UTILIZATION_CAUTION:
+                color = 'green'
+                try:
+                    total_net = net[0] + net[1]
+                except:
+                    total_net = 0
+                    net = [0, 0]
+                if total_net > 0:
+                    if total_net > NETOPS_CAUTION:
                         util_poll_samples[i] = util_poll_samples[i] + 1
-                        if color == 'red':
-                            # Heat overrides utilization warning
-                            shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                        else:
-                            if util_poll_samples[i] > UTIL_SAMPLES:        
-                                util_color = 'yellow'
-                                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=util_color)
-                            else:
-                                shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                    else:
-                        shape = canvas.create_oval(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-                        util_poll_samples[i] = util_poll_samples[i] - 1
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"{device_name}\t|     {avg_temp}°  |  {fan_speed}%\t|\t{utils[i][1]}%")
+                        if util_poll_samples[i] > UTIL_SAMPLES:
+                            color = 'yellow'
+                else:
+                    if total_net == 0:
+                        util_poll_samples[i] = util_poll_samples[i] + 1
+                        if util_poll_samples[i] > UTIL_SAMPLES:
+                            color = 'blue'
+                if total_net < NETOPS_CAUTION and total_net > 0:
+                    util_poll_samples[i] = util_poll_samples[i] - 1
+                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up:\t{net[0]}Mb\t| Down: {net[1]}Mb")
+                device_elements.append((shape, text))
 
-                    # Add the elements to the list
-                    device_elements.append((shape, text))
-                except Exception as e:
-                    print("Error occurred in processing main temps")
-                    print(e)
-                    traceback.print_exc()
-                    continue
-                net_row = i
-            # Add Network Up and Down
-            i = net_row + 1
-            row = i + 1
-            if len(util_poll_samples) <= i:
-                util_poll_samples.append(0)
-            color = 'green'
-            try:
-                total_net = net[0] + net[1]
-            except:
-                total_net = 0
-                net = [0, 0]
-            if total_net > 0:
-                if total_net > NETOPS_CAUTION:
-                    util_poll_samples[i] = util_poll_samples[i] + 1
-                    if util_poll_samples[i] > UTIL_SAMPLES:
-                        color = 'yellow'
-            else:
-                if total_net == 0:
-                    util_poll_samples[i] = util_poll_samples[i] + 1
-                    if util_poll_samples[i] > UTIL_SAMPLES:
-                        color = 'blue'
-            if total_net < NETOPS_CAUTION and total_net > 0:
-                util_poll_samples[i] = util_poll_samples[i] - 1
-            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up:\t{net[0]}Mb\t| Down: {net[1]}Mb")
-            device_elements.append((shape, text))
-
-            #Add Disk Ops
-            i = i + 1
-            row = i + 1
-            if len(util_poll_samples) <= i:
-                util_poll_samples.append(0)
-            color = 'green'
-            try:
-                total_disk = disk[0] + disk[1]
-            except:
-                total_disk = 0
-                disk = [0, 0]
-            if total_disk > 0:
-                if total_net > DISKOPS_CAUTION:
-                    util_poll_samples[i] = util_poll_samples[i] + 1
-                    if util_poll_samples[i] > UTIL_SAMPLES:
-                        color = 'yellow'
-            else:
-                if total_disk == 0:
-                    util_poll_samples[i] = util_poll_samples[i] + 1
-                    if util_poll_samples[i] > UTIL_SAMPLES:
-                        color = 'blue'
-            if total_disk < DISKOPS_CAUTION and total_disk > 0:
-                util_poll_samples[i] = util_poll_samples[i] - 1
-            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
-            device_elements.append((shape, text))
-        except Exception as e:
-            print("Error occurred in processing libre data")
-            print(e)
-            traceback.print_exc()
-            # Remove the old Device elements
-            for circle, text in device_elements:
-                canvas.delete(circle)
-                canvas.delete(text)
-            device_elements.clear()
-            i = 0
-            row = 1
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
-            device_elements.append((text, None))
-        
+                #Add Disk Ops
+                i = i + 1
+                row = i + 1
+                if len(util_poll_samples) <= i:
+                    util_poll_samples.append(0)
+                color = 'green'
+                try:
+                    total_disk = disk[0] + disk[1]
+                except:
+                    total_disk = 0
+                    disk = [0, 0]
+                if total_disk > 0:
+                    if total_net > DISKOPS_CAUTION:
+                        util_poll_samples[i] = util_poll_samples[i] + 1
+                        if util_poll_samples[i] > UTIL_SAMPLES:
+                            color = 'yellow'
+                else:
+                    if total_disk == 0:
+                        util_poll_samples[i] = util_poll_samples[i] + 1
+                        if util_poll_samples[i] > UTIL_SAMPLES:
+                            color = 'blue'
+                if total_disk < DISKOPS_CAUTION and total_disk > 0:
+                    util_poll_samples[i] = util_poll_samples[i] - 1
+                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
+                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
+                device_elements.append((shape, text))
+            except Exception as e:
+                print("Error occurred in processing libre data")
+                print(e)
+                traceback.print_exc()
+                # Remove the old Device elements
+                for circle, text in device_elements:
+                    canvas.delete(circle)
+                    canvas.delete(text)
+                device_elements.clear()
+                i = 0
+                row = 1
+                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
+                device_elements.append((text, None))
+            
         # Check if the web server is giving the correct response code
         if WEB_SERVER_ENABLED:
             row = row + 1
