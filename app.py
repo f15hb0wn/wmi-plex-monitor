@@ -111,10 +111,13 @@ def fetch_weather():
         # Extract the current temperature, high, low, and chance of rain
         # Pretty print the JSON response
         # Check if any alerts exist
+        alert = False
         if 'alerts' in data and 'alert' in data['alerts'] and len(data['alerts']['alert']) > 0:
-            alert = data['alerts']['alert'][0]['event']
-        else:
-            alert = False
+            for event in data['alerts']['alert']:
+                lower_case = event['event'].lower()
+                if 'warning' in event or 'watch' in lower_case:
+                    alert = event['event']
+
         
         current_temp = data['current']['temp_f']
         high_temp = data['forecast']['forecastday'][0]['day']['maxtemp_f']
