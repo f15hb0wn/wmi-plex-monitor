@@ -101,7 +101,11 @@ def fetch_weather():
     last_weather_fetch_time = time.time()
     # Make a request to the weather API
     url = f'http://api.weatherapi.com/v1/forecast.json?key={WEATHER_API_KEY}&q={WEATHER_ZIP_CODE}&days=1&aqi=yes&alerts=yes'
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+    except:
+        print("Error occurred in fetching weather data")
+        return False
 
     # Check if the request was successful
     if response.status_code == 200:
@@ -168,6 +172,9 @@ def fetch_weather():
             'aq_score': aq_score
         }
         return weather_data
+    else:
+        print(f"Error fetching weather data. Response code: {response.status_code}")
+        return False
     
 # check if the web server is giving the correct response code
 def check_web_server():
@@ -671,43 +678,56 @@ def update_metrics():
         # Add a row of the weather
         if WEATHER_ENABLED:
             try:
-                row = row + 1
-                i = i + 1
                 weather = fetch_weather()
-                if weather['chance_of_snow'] > weather['chance_of_rain']:
-                    precip = f'{weather['chance_of_snow']}% Snow'
-                else:
-                    precip = f'{weather['chance_of_rain']}% Rain'
-                if weather['alert']:
-                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
-                    msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
-                else:
-                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
-                    msg = f'{weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
-                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
-                device_elements.append((shape, text))
-                #Add Air Quality
-                row = row + 1
-                i = i + 1
-                if weather['aq_score'] == "Moderate":
-                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='yellow')
-                elif weather['aq_score'] == "Poor":
-                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
-                elif weather['aq_score'] == "Good":
-                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
-                text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Air Quality: {weather['aq_score']}")
-                device_elements.append((shape, text))
             except Exception as e:
-                print("Error occurred in processing weather")
+                print("Error occurred in fetching weather")
                 print(e)
                 traceback.print_exc()
+                weather = False
+            if weather:
+                try:
+                    row = row + 1
+                    i = i + 1
+                    if weather['chance_of_snow'] > weather['chance_of_rain']:
+                        precip = f'{weather['chance_of_snow']}% Snow'
+                    else:
+                        precip = f'{weather['chance_of_rain']}% Rain'
+                    if weather['alert']:
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                        msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
+                        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
+                    else:
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
+                        msg = f'{weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
+                        text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
+                    device_elements.append((shape, text))
+                    #Add Air Quality
+                    row = row + 1
+                    i = i + 1
+                    if weather['aq_score'] == "Moderate":
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='yellow')
+                    elif weather['aq_score'] == "Poor":
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                    elif weather['aq_score'] == "Good":
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Air Quality: {weather['aq_score']}")
+                    device_elements.append((shape, text))
+                except Exception as e:
+                    print("Error occurred in processing weather")
+                    print(e)
+                    traceback.print_exc()
+                    row = row + 1
+                    i = i + 1
+                    shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                    text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: Error fetching weather")
+                    device_elements.append((shape, text))
+            else:
                 row = row + 1
                 i = i + 1
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"Weather: Error fetching weather")
                 device_elements.append((shape, text))
-        
+            
         # Add a row of the world time
         row = row + 1
         i = i + 1
