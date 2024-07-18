@@ -468,6 +468,7 @@ window.geometry('+0+0')
 last_n_temps = {}
 device_elements = []
 util_poll_samples = []
+cold_poll_samples = []
 
 def update_metrics():
     global pause_polling
@@ -534,6 +535,8 @@ def update_metrics():
                     # Set util samples if not set
                     if len(util_poll_samples) <= i:
                         util_poll_samples.append(0)
+                    if len(cold_poll_samples) <= i: 
+                        cold_poll_samples.append(0)
 
                     # If this is a new GPU, create a new deque for it
                     if device_name not in last_n_temps:
@@ -586,6 +589,8 @@ def update_metrics():
                 row = i + 1
                 if len(util_poll_samples) <= i:
                     util_poll_samples.append(0)
+                if len(cold_poll_samples) <= i:
+                    cold_poll_samples.append(0)
                 color = 'green'
                 try:
                     total_net = net[0] + net[1]
@@ -595,15 +600,19 @@ def update_metrics():
                 if total_net > 0:
                     if total_net > NETOPS_CAUTION:
                         util_poll_samples[i] = util_poll_samples[i] + 1
-                        if util_poll_samples[i] > UTIL_SAMPLES:
-                            color = 'yellow'
                 else:
                     if total_net == 0:
-                        util_poll_samples[i] = util_poll_samples[i] + 1
-                        if util_poll_samples[i] > UTIL_SAMPLES:
-                            color = 'blue'
-                if total_net < NETOPS_CAUTION and total_net > 0:
+                        cold_poll_samples[i] = cold_poll_samples[i] + 1
+                # Decrement hot and cold utilization samples
+                if total_net < NETOPS_CAUTION:
                     util_poll_samples[i] = util_poll_samples[i] - 1
+                if total_net > 0:
+                    cold_poll_samples[i] = cold_poll_samples[i] - 1
+                # Set the color based on the total network utilization poll thresholds        
+                if cold_poll_samples[i] > UTIL_SAMPLES and total_net == 0:
+                    color = 'blue'
+                if util_poll_samples[i] > UTIL_SAMPLES:
+                    color = 'yellow'
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"NET IO\t| Up:\t{net[0]}Mb\t| Down: {net[1]}Mb")
                 device_elements.append((shape, text))
@@ -613,6 +622,8 @@ def update_metrics():
                 row = i + 1
                 if len(util_poll_samples) <= i:
                     util_poll_samples.append(0)
+                if len(cold_poll_samples) <= i:
+                    cold_poll_samples.append(0)
                 color = 'green'
                 try:
                     total_disk = disk[0] + disk[1]
@@ -620,17 +631,21 @@ def update_metrics():
                     total_disk = 0
                     disk = [0, 0]
                 if total_disk > 0:
-                    if total_disk > DISKOPS_CAUTION:
+                    if total_net > DISKOPS_CAUTION:
                         util_poll_samples[i] = util_poll_samples[i] + 1
-                        if util_poll_samples[i] > UTIL_SAMPLES:
-                            color = 'yellow'
                 else:
                     if total_disk == 0:
-                        util_poll_samples[i] = util_poll_samples[i] + 1
-                        if util_poll_samples[i] > UTIL_SAMPLES:
-                            color = 'blue'
-                if total_disk < DISKOPS_CAUTION and total_disk > 0:
+                        cold_poll_samples[i] = cold_poll_samples[i] + 1
+                # Decrement hot and cold utilization samples
+                if total_disk < DISKOPS_CAUTION:
                     util_poll_samples[i] = util_poll_samples[i] - 1
+                if total_disk > 0:
+                    cold_poll_samples[i] = cold_poll_samples[i] - 1
+                # Set the color based on the total network utilization poll thresholds        
+                if cold_poll_samples[i] > UTIL_SAMPLES and total_disk == 0:
+                    color = 'blue'
+                if util_poll_samples[i] > UTIL_SAMPLES:
+                    color = 'yellow'
                 shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
                 device_elements.append((shape, text))
