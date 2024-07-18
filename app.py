@@ -559,9 +559,9 @@ def update_metrics():
                     if fan_speed < 1:
                         color = 'red'
                     util_color = 'green'
-                    if utils[i][1] > UTILIZATION_CAUTION:
+                    if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < NUM_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
-                    if utils[i][1] == 0:
+                    if utils[i][1] == 0 and cold_poll_samples[i] < NUM_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                     if utils[i][1] < UTILIZATION_CAUTION and util_poll_samples[i] > 0:
                         util_poll_samples[i] = util_poll_samples[i] - 1
@@ -599,10 +599,10 @@ def update_metrics():
                     total_net = 0
                     net = [0, 0]
                 if total_net > 0:
-                    if total_net > NETOPS_CAUTION:
+                    if total_net > NETOPS_CAUTION and util_poll_samples[i] < NUM_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
                 else:
-                    if total_net == 0:
+                    if total_net == 0 and cold_poll_samples[i] < NUM_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
                 if total_net < NETOPS_CAUTION and util_poll_samples[i] > 0:
@@ -632,10 +632,10 @@ def update_metrics():
                     total_disk = 0
                     disk = [0, 0]
                 if total_disk > 0:
-                    if total_disk > DISKOPS_CAUTION:
+                    if total_disk > DISKOPS_CAUTION and util_poll_samples[i] < NUM_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
                 else:
-                    if total_disk == 0:
+                    if total_disk == 0 and cold_poll_samples[i] < NUM_SAMPLES:
                         cold_poll_samples[i] = cold_poll_samples[i] + 1
                 # Decrement hot and cold utilization samples
                 if total_disk < DISKOPS_CAUTION and util_poll_samples[i] > 0:
