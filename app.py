@@ -343,6 +343,7 @@ def poll_libre():
         counta+=1
     # Process the sensors
     try:
+        data_matched = False
         for sensor in sensors:
             #Temperature sensors
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "GPU Core":
@@ -350,6 +351,7 @@ def poll_libre():
                     gpus.append(sensor['Parent'])
                 gpu_id = gpus.index(sensor['Parent'])
                 temps.append(("GPU-" + str(gpu_id), sensor['Value']))
+                data_matched = True
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "CPU Socket":
                 cpu_temp = sensor['Value']
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "System":
@@ -387,6 +389,9 @@ def poll_libre():
                 d_up = float(sensor['Value']) + d_up
             if sensor['Name'] == "Write Rate":
                 d_down = float(sensor['Value']) + d_down
+        if not data_matched:
+            print("No GPU data found while processing libre_poll")
+            return False
     except Exception as e:
         print("Error occurred in processing libre_poll")
         print(e)
