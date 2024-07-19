@@ -245,9 +245,15 @@ disk = []
 def remove_units_to_float(temp):
     value = temp
     try:
-        strings_to_remove = [' ','°C','°F','%','/s', '/', 'RPM', 'KB', 'MB', 'GB', 'TB','MHz', 'GHz', 'V', 'W'] 
+        strings_to_remove = [' ','°C','°F','%','/s', '/', 'RPM', 'KB', 'MB', 'GB', 'TB','MHz', 'GHz', 'V', 'W','-'] 
         for string in strings_to_remove:
             value = value.replace(string, '')
+        try:
+            value = float(value)
+        except:
+            print(f"Error occurred in remove_units_to_float: {e}")
+            traceback.print_exc()
+            return temp
         if 'KB' in temp or 'Kb' in temp:
             value = float(value) * 1024
         elif 'MB' in temp or 'Mb' in temp:
