@@ -116,20 +116,7 @@ def fetch_weather():
         # Pretty print the JSON response
         if DEBUG: print(json.dumps(data, indent=4))
 
-        # Check if any alerts exist
-        alert = False
-        alert_level = 0
-        if 'alerts' in data and 'alert' in data['alerts'] and len(data['alerts']['alert']) > 0:
-            for event in data['alerts']['alert']:
-                lower_case = event['event'].lower()
-                if 'warning' in lower_case or 'alert' in lower_case or 'emergency' in lower_case:
-                    alert = event['event']
-                    alert_level = 2
-                elif 'watch' in lower_case and alert_level < 2:
-                    alert = event['event']
-                    alert_level = 1
-
-        
+      
         current_temp = data['current']['temp_f']
         high_temp = data['forecast']['forecastday'][0]['day']['maxtemp_f']
         low_temp = data['forecast']['forecastday'][0]['day']['mintemp_f']
@@ -150,6 +137,24 @@ def fetch_weather():
         aq_no2 = data['current']['air_quality']['no2']
         aq_so2 = data['current']['air_quality']['so2']
         aq_co = data['current']['air_quality']['co']
+
+        # Check if any alerts exist
+        alert = False
+        alert_level = 0
+        if 'alerts' in data and 'alert' in data['alerts'] and len(data['alerts']['alert']) > 0:
+            for event in data['alerts']['alert']:
+                lower_case = event['event'].lower()
+                if 'warning' in lower_case or 'alert' in lower_case or 'emergency' in lower_case:
+                    if 'flood' in lower_case and totalprecip_in < 0.25:
+                        continue
+                    alert = event['event']
+                    alert_level = 2
+                elif 'watch' in lower_case and alert_level < 2:
+                    if 'flood' in lower_case and totalprecip_in < 0.25:
+                        continue
+                    alert = event['event']
+                    alert_level = 1
+
 
         aq_score = "Good"
         if aq_ozone > 100 or aq_pm10 > 20 or aq_pm2_5 > 11 or aq_no2 > 11 or aq_so2 > 11 or aq_co > 10000:
