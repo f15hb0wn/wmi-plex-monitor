@@ -114,6 +114,8 @@ def fetch_weather():
 
         # Extract the current temperature, high, low, and chance of rain
         # Pretty print the JSON response
+        if DEBUG: print(json.dumps(data, indent=4))
+
         # Check if any alerts exist
         alert = False
         alert_level = 0
@@ -131,8 +133,17 @@ def fetch_weather():
         current_temp = data['current']['temp_f']
         high_temp = data['forecast']['forecastday'][0]['day']['maxtemp_f']
         low_temp = data['forecast']['forecastday'][0]['day']['mintemp_f']
-        chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain']
-        chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow']
+        totalprecip_in = data['forecast']['forecastday'][0]['day']['totalprecip_in']
+        # Calculate the chance of rain based on the total precipitation of more than 0.25 inches
+        chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain'] * totalprecip_in / 4
+        chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow'] * totalprecip_in / 4
+        if chance_of_rain > 100:
+            chance_of_rain = 100
+        if chance_of_snow > 100:
+            chance_of_snow = 100
+        # round the chance of rain to the nearest whole number
+        chance_of_rain = round(chance_of_rain)
+        chance_of_snow = round(chance_of_snow)
         aq_ozone = data['current']['air_quality']['o3']
         aq_pm10 = data['current']['air_quality']['pm10']
         aq_pm2_5 = data['current']['air_quality']['pm2_5']
