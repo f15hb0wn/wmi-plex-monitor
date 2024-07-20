@@ -241,7 +241,7 @@ last_web_server_check = 0
 # check if the web server is giving the correct response code
 def check_web_server():
     global last_web_server_check, WEB_SERVERS
-    if time.time() - last_web_server_check < 300:
+    if time.time() - last_web_server_check < 30:
         return WEB_SERVERS
     last_web_server_check = time.time()
     results = []
@@ -251,7 +251,7 @@ def check_web_server():
         start_time_ms = time.time()
         WEB_SERVER['response_time'] = -1
         try:
-            response = requests.get(url, timeout=5)
+            response = requests.get(url, timeout=10)
         except Exception as e:
             print(f"Error occurred in fetching web server data")
             print(e)
