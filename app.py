@@ -273,6 +273,7 @@ def check_web_server():
 
 def get_active_plex_sessions():
     start_time = time.time()
+    users = []
     try:
         plex_api = PlexServer(PLEX_SERVER, PLEX_TOKEN)
     except Exception as e:
@@ -280,16 +281,29 @@ def get_active_plex_sessions():
         return False
     try:
         sessions = plex_api.sessions()
-        active_users = [session.user.title for session in sessions]
+        for session in sessions:
+            user = session.user.title
+            users.append(user)
     except Exception as e:
         print(f"Error occurred fetching sessions: {e}")
         return False
-    if len(sessions) == 0:
+    if len(users) == 0:
         return "Idle"
     else:
         end_time = time.time()
         if DEBUG: print(f"Plex check took {end_time - start_time} seconds")
-        active_users_text = ', '.join(active_users)
+        rendered_users = []
+        formatted_users = []
+        for user in users:
+            if user not in rendered_users:
+                rendered_users.append(user)
+                session_count = users.count(user)
+                if session_count > 1:
+                    user = f"{user} ({session_count})"
+                else:
+                    user = f"{user}"
+                formatted_users.append(user)
+        active_users_text = ', '.join(formatted_users)
         return active_users_text
 
 
