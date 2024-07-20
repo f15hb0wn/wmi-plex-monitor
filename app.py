@@ -74,10 +74,8 @@ PLEX_ENABLED = settings['PLEX_ENABLED']
 PLEX_ACCOUNT = settings['PLEX_ACCOUNT']
 PLEX_TOKEN = settings['PLEX_TOKEN']
 # Web Server settings
-WEB_SERVER = settings['WEB_SERVER']
+WEB_SERVERS = settings['WEB_SERVERS']
 WEB_SERVER_ENABLED = settings['WEB_SERVER_ENABLED']
-WEB_RESPONSE_CODE = settings['WEB_RESPONSE_CODE']
-WEB_SERVER_NAME = settings['WEB_SERVER_NAME']
 #Weather settings
 WEATHER_ENABLED = settings['WEATHER_ENABLED']
 WEATHER_ZIP_CODE = settings['WEATHER_ZIP_CODE']
@@ -239,22 +237,39 @@ def fetch_weather():
     else:
         print(f"Error fetching weather data. Response code: {response.status_code}")
         return False
-    
+last_web_server_check = 0
 # check if the web server is giving the correct response code
 def check_web_server():
-    start_time = time.time()
-    try:
-        response = requests.get(WEB_SERVER, timeout=1)
-    except Exception as e:
-        print(f"Error occurred: {e}")
-        return False
-    if response.status_code != WEB_RESPONSE_CODE:
-        print(f"Web server returned {response.status_code} instead of {WEB_RESPONSE_CODE}")
-        return False
-    else:
-        end_time = time.time()
-        if DEBUG: print(f"Web server check took {end_time - start_time} seconds")
-        return True
+    global last_web_server_check, WEB_SERVERS
+    if time.time() - last_web_server_check < 300:
+        return WEB_SERVERS
+    last_web_server_check = time.time()
+    results = []
+    for WEB_SERVER in WEB_SERVERS:
+        url = WEB_SERVER['url']
+        response_code = WEB_SERVER['response_code']
+        start_time_ms = time.time()
+        WEB_SERVER['response_time'] = -1
+        try:
+            response = requests.get(url, timeout=5)
+        except Exception as e:
+            print(f"Error occurred in fetching web server data")
+            print(e)
+            WEB_SERVER['response_time'] = -1
+            results.append(WEB_SERVER)
+            continue
+        end_time_ms = time.time()
+        if response.status_code != response_code:
+            WEB_SERVER['response_time'] = -1
+            print(f"Web server returned {response.status_code} instead of {response_code}")
+        else:
+            time_wait = round(end_time_ms - start_time_ms, 2)
+            WEB_SERVER['response_time'] = time_wait
+        results.append(WEB_SERVER)
+    
+    WEB_SERVERS = results
+    return results
+
 
 
 def get_active_plex_sessions():
@@ -768,18 +783,30 @@ def update_metrics():
                 print("Error occurred in saving range data")
                 print(e)
                 traceback.print_exc()
-            
+        small_font = int(FONT_SIZE * 0.7) 
         # Check if the web server is giving the correct response code
         if WEB_SERVER_ENABLED:
             row = row + 1
             i = i + 1
-            if not check_web_server():
-                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
-            else:
-                shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='green')
-            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Web Server ({WEB_SERVER_NAME})")
+            results = check_web_server()
+            color = 'green'
+            text = "Web: "
+            site = 0
+            for result in results:
+                site = site + 1
+                if site > 1:
+                    text = text + " | "
+                if result['response_time'] == -1:
+                    color = 'red'
+                    text = text + f"{result['name']}: down"
+                else:
+                    text = text + f"{result['name']}: {result['response_time']}s"
+                if result['response_time'] > result['response_threshold']:
+                    color = 'yellow'
+            shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)   
+            text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{text}")
             device_elements.append((shape, text))
-        small_font = int(FONT_SIZE * 0.7)
+        
         # Check if there are any active Plex sessions
         if PLEX_ENABLED:
             row = row + 1

@@ -30,9 +30,11 @@ PLEX_SERVER: http://192.168.10.253:32400
 PLEX_TOKEN: xxxxxxx
 # Web Server Settings
 WEB_SERVER_ENABLED: false
-WEB_SERVER: https://www.charlesherring.com
-WEB_RESPONSE_CODE: 200
-WEB_SERVER_NAME: "CharlesHerring.com"
+WEB_SERVERS:
+  - url: https://www.charlesherring.com
+    response_code: 200
+    name: Fishrules
+    response_threshold: 1.0
 # Weather Settings
 WEATHER_ENABLED: false
 WEATHER_ZIP_CODE: 60126
