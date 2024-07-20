@@ -9,6 +9,9 @@ __pycache__/
 #Settings file
 settings.yaml
 
+# Log Files
+*.log
+
 # Distribution / packaging
 .Python
 build/
