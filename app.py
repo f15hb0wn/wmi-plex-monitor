@@ -16,8 +16,12 @@ with open('settings.yaml', 'r') as file:
     settings = yaml.safe_load(file)
 
 # Set the temperature thresholds
-CAUTION_TEMP = settings['CAUTION_TEMP']
-DANGER_TEMP = settings['DANGER_TEMP']
+CPU_CAUTION_TEMP = settings['CPU_CAUTION_TEMP']
+CPU_DANGER_TEMP = settings['CPU_DANGER_TEMP']
+GPU_CAUTION_TEMP = settings['GPU_CAUTION_TEMP']
+GPU_DANGER_TEMP = settings['GPU_DANGER_TEMP']
+RAM_CAUTION_TEMP = settings['RAM_CAUTION_TEMP']
+RAM_DANGER_TEMP = settings['RAM_DANGER_TEMP']
 NETOPS_CAUTION = settings['NETOPS_CAUTION']
 DISKOPS_CAUTION = settings['DISKOPS_CAUTION']
 UTILIZATION_CAUTION = settings['UTILIZATION_CAUTION']
@@ -574,7 +578,15 @@ def update_metrics():
                     
                     # Calculate the average temperature and round it to the nearest whole number
                     avg_temp = round(sum(last_n_temps[device_name]) / len(last_n_temps[device_name]))
-                    
+                    if device_name == "CPU":
+                        CAUTION_TEMP = CPU_CAUTION_TEMP
+                        DANGER_TEMP = CPU_DANGER_TEMP
+                    elif device_name == "RAM":
+                        CAUTION_TEMP = RAM_CAUTION_TEMP
+                        DANGER_TEMP = RAM_DANGER_TEMP
+                    else:
+                        CAUTION_TEMP = GPU_CAUTION_TEMP
+                        DANGER_TEMP = GPU_DANGER_TEMP
                     # Determine the color of the circle based on the average temperature
                     if avg_temp < CAUTION_TEMP:
                         color = 'green'
@@ -583,7 +595,7 @@ def update_metrics():
                     else:
                         color = 'red'
                     # Alarm on dead fan
-                    if fan_speed < 1:
+                    if fan_speed < 1 and "GPU" not in device_name:
                         color = 'red'
                     util_color = 'green'
                     if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < UTIL_SAMPLES:
