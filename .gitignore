@@ -10,7 +10,7 @@ __pycache__/
 settings.yaml
 
 # Log Files
-*.log
+*.txt
 range.json
 
 # Distribution / packaging
