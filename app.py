@@ -243,7 +243,6 @@ def check_web_server():
     global last_web_server_check, WEB_SERVERS
     if time.time() - last_web_server_check < 30:
         return WEB_SERVERS
-    last_web_server_check = time.time()
     results = []
     for WEB_SERVER in WEB_SERVERS:
         url = WEB_SERVER['url']
@@ -266,7 +265,7 @@ def check_web_server():
             time_wait = round(end_time_ms - start_time_ms, 2)
             WEB_SERVER['response_time'] = time_wait
         results.append(WEB_SERVER)
-    
+    last_web_server_check = time.time()
     WEB_SERVERS = results
     return results
 
