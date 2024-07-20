@@ -86,6 +86,41 @@ WEATHER_PRECIPITATION_WARNING = settings['WEATHER_PRECIPITATION_WARNING']
 WEATHER_HIGH_TEMP_WARNING = settings['WEATHER_HIGH_TEMP_WARNING']
 WEATHER_LOW_TEMP_WARNING = settings['WEATHER_LOW_TEMP_WARNING']
 last_weather_fetch_time = 0
+logfile = "log.txt"
+range_file = "range.json"
+
+def log(message):
+    try:
+        with open(logfile, 'a') as log:
+            log.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - {message}\n")
+    except Exception as e:
+        print(f"Error occurred in logging: {e}")
+        traceback.print_exc()
+    log.close()
+
+def load_range():
+    try:
+        with open(range_file, 'r') as file:
+            range_data = json.load(file)
+    except:
+        range_data = {}
+    return range_data
+
+def save_range(range_data):
+    try:
+        with open(range_file, 'w') as file:
+            json.dump(range_data, file)
+    except Exception as e:
+        print(f"Error occurred in saving range: {e}")
+        traceback.print_exc()
+range_data = load_range()
+if 'temp_cpu_min' not in range_data:
+    range_data['temp_cpu_min'] = 1000
+    range_data['temp_gpu_min'] = 1000
+    range_data['temp_ram_min'] = 1000
+    range_data['temp_cpu_max'] = 0
+    range_data['temp_gpu_max'] = 0
+    range_data['temp_ram_max'] = 0
 
 def world_time():
     # Use pytz.timezone to get tzinfo objects based on timezone strings
@@ -590,21 +625,35 @@ def update_metrics():
                     if device_name == "CPU":
                         CAUTION_TEMP = CPU_CAUTION_TEMP
                         DANGER_TEMP = CPU_DANGER_TEMP
+                        if avg_temp < range_data['temp_cpu_min'] and avg_temp > 0:
+                            range_data['temp_cpu_min'] = avg_temp
+                        if avg_temp > range_data['temp_cpu_max']:
+                            range_data['temp_cpu_max'] = avg_temp
                     elif device_name == "RAM":
                         CAUTION_TEMP = RAM_CAUTION_TEMP
                         DANGER_TEMP = RAM_DANGER_TEMP
+                        if avg_temp < range_data['temp_ram_min'] and avg_temp > 0:
+                            range_data['temp_ram_min'] = avg_temp
+                        if avg_temp > range_data['temp_ram_max']:
+                            range_data['temp_ram_max'] = avg_temp
                     else:
                         CAUTION_TEMP = GPU_CAUTION_TEMP
                         DANGER_TEMP = GPU_DANGER_TEMP
+                        if avg_temp < range_data['temp_gpu_min'] and avg_temp > 0:
+                            range_data['temp_gpu_min'] = avg_temp
+                        if avg_temp > range_data['temp_gpu_max']:
+                            range_data['temp_gpu_max'] = avg_temp
                     # Determine the color of the circle based on the average temperature
                     if avg_temp < CAUTION_TEMP:
                         color = 'green'
                     elif avg_temp <= DANGER_TEMP:
                         color = 'yellow'
                     else:
+                        log(f"High Temp: {device_name} - {avg_temp}")
                         color = 'red'
                     # Alarm on dead fan
-                    if fan_speed < 1 and "GPU" not in device_name:
+                    if fan_speed < 1:
+                        log(f"Dead Fan: {device_name}")
                         color = 'red'
                     util_color = 'green'
                     if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < UTIL_SAMPLES:
@@ -711,6 +760,14 @@ def update_metrics():
                 row = 1
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"Device\tTemp\tFan\tUtilization")
                 device_elements.append((text, None))
+            try:
+                # Save the range data
+                with open(range_file, 'w') as f:
+                    json.dump(range_data, f)
+            except Exception as e:
+                print("Error occurred in saving range data")
+                print(e)
+                traceback.print_exc()
             
         # Check if the web server is giving the correct response code
         if WEB_SERVER_ENABLED:
