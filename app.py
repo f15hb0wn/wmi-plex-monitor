@@ -763,6 +763,7 @@ def update_metrics():
                 text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", FONT_SIZE), fill='white', text=f"DISK IO\t| Read:\t{disk[0]}MB\t| Write: {disk[1]}MB")
                 device_elements.append((shape, text))
             except Exception as e:
+                log("Error occurred in processing libre data")
                 print("Error occurred in processing libre data")
                 print(e)
                 traceback.print_exc()
@@ -798,10 +799,12 @@ def update_metrics():
                     text = text + " | "
                 if result['response_time'] == -1:
                     color = 'red'
+                    log(f"Web Server: {result['name']} - down")
                     text = text + f"{result['name']}: down"
                 else:
                     text = text + f"{result['name']}: {result['response_time']}s"
                 if result['response_time'] > result['response_threshold']:
+                    log(f"Web Server: {result['name']} - slow response time: {result['response_time']}s")
                     color = 'yellow'
             shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=color)   
             text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{text}")
