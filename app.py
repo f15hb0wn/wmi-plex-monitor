@@ -169,11 +169,20 @@ def fetch_weather():
         # Set the color based on the weather conditions
         color = 'green'
         if chance_of_rain > WEATHER_PRECIPITATION_WARNING:
-            color = 'yellow'
+            if alert_level < 2:
+                alert = "Rain"
+                color = 'yellow'
+                alert_level = 1
         elif high_temp > WEATHER_HIGH_TEMP_WARNING:
-            color = 'yellow'
+            if alert_level < 2:
+                alert = "High Temp"
+                color = 'yellow'
+                alert_level = 1
         elif low_temp < WEATHER_LOW_TEMP_WARNING:
-            color = 'yellow'
+            if alert_level < 2:
+                alert = "Low Temp"
+                color = 'yellow'
+                alert_level = 1
 
         if alert_level == 1:
             color = 'yellow'
@@ -748,7 +757,7 @@ def update_metrics():
                     else:
                         precip = f'{weather['chance_of_rain']}% Rain'
                     if weather['alert']:
-                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill='red')
+                        shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
                         msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
                         text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
                     else:
