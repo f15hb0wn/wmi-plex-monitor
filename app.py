@@ -170,19 +170,28 @@ def fetch_weather():
         chance_of_snow = round(chance_of_snow)
         try:
             aq_ozone = data['current']['air_quality']['o3']
-            aq_pm10 = data['current']['air_quality']['pm10']
-            aq_pm2_5 = data['current']['air_quality']['pm2_5']
-            aq_no2 = data['current']['air_quality']['no2']
-            aq_so2 = data['current']['air_quality']['so2']
-            aq_co = data['current']['air_quality']['co']
         except:
             aq_ozone = 0
+        try:
+            aq_pm10 = data['current']['air_quality']['pm10']
+        except:
             aq_pm10 = 0
+        try:
+            aq_pm2_5 = data['current']['air_quality']['pm2_5']
+        except:
             aq_pm2_5 = 0
+        try:
+            aq_no2 = data['current']['air_quality']['no2']
+        except:
             aq_no2 = 0
+        try:
+            aq_so2 = data['current']['air_quality']['so2']
+        except:
             aq_so2 = 0
+        try:
+            aq_co = data['current']['air_quality']['co']
+        except:
             aq_co = 0
-            print("Error occurred in fetching air quality data")
         # Check if any alerts exist
         alert = False
         alert_level = 0
