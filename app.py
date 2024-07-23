@@ -159,8 +159,11 @@ def fetch_weather():
         low_temp = data['forecast']['forecastday'][0]['day']['mintemp_f']
         totalprecip_in = data['forecast']['forecastday'][0]['day']['totalprecip_in']
         # Calculate the chance of rain based on the total precipitation of more than 0.25 inches
-        chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain'] * totalprecip_in * 4
-        chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow'] * totalprecip_in * 4
+        rain_modifier = totalprecip_in * 4
+        if rain_modifier > 1:
+            rain_modifier = 1
+        chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain'] * rain_modifier
+        chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow'] * rain_modifier
         if chance_of_rain > 100:
             chance_of_rain = 100
         if chance_of_snow > 100:
