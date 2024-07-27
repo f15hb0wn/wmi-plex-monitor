@@ -699,10 +699,6 @@ def update_metrics():
                     else:
                         log(f"High Temp: {device_name} - {avg_temp}")
                         color = 'red'
-                    # Alarm on dead fan
-                    if fan_speed < 1:
-                        log(f"Dead Fan: {device_name}")
-                        color = 'red'
                     util_color = 'green'
                     if utils[i][1] > UTILIZATION_CAUTION and utils[i][1] < UTIL_SAMPLES:
                         util_poll_samples[i] = util_poll_samples[i] + 1
