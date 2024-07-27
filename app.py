@@ -470,7 +470,7 @@ def poll_libre():
                 gpu_id = gpus.index(sensor['Parent'])
                 temps.append(("GPU-" + str(gpu_id), sensor['Value']))
                 data_matched = True
-            if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "CPU Socket":
+            if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "Core Average":
                 cpu_temp = sensor['Value']
             if sensor['SensorType'] == u'Temperatures' and sensor['Name'] == "System":
                 system_temp = sensor['Value']
