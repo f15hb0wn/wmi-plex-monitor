@@ -13,6 +13,11 @@ UTILIZATION_CAUTION: 95
 NUM_SAMPLES: 30
 POLL_INTERVAL_MS: 3000
 UTIL_SAMPLES: 10
+SYSTEM_FANS_ENABLED:
+  - 1
+  - 2
+  - 3
+  - 4
 # UI Settings
 HEIGHT: 400 # 0 = full screen
 WIDTH: 600 # 0 = full screen

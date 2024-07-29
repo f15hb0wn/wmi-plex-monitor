@@ -40,6 +40,7 @@ ALWAYS_ON_TOP = settings['ALWAYS_ON_TOP']
 # Set width of the window
 HEIGHT = settings['HEIGHT']
 WIDTH = settings['WIDTH']
+SYSTEM_FANS_ENABLED = settings['SYSTEM_FANS_ENABLED']
 
 if HEIGHT == 0 and WIDTH == 0:
     # Create a temporary Tkinter window
@@ -460,6 +461,8 @@ def poll_libre():
         countb=0
         counta+=1
     # Process the sensors
+    system_fan_speed = 100
+    system_fan_missing = True
     try:
         data_matched = False
         for sensor in sensors:
@@ -495,8 +498,12 @@ def poll_libre():
                 fan_speeds.append(("GPU-" + str(gpu_id), sensor['Value']))
             if sensor['SensorType'] == u'Controls' and sensor['Name'] == "CPU Fan":
                 fan_speeds.append(("CPU", sensor['Value']))
-            if sensor['SensorType'] == u'Controls' and sensor['Name'] == "System Fan #1":
-                fan_speeds.append(("RAM", sensor['Value']))
+            for fan_number in SYSTEM_FANS_ENABLED:
+                fan_name = f"System Fan #{fan_number}"
+                if sensor['SensorType'] == u'Controls' and sensor['Name'] == fan_name:
+                    if int(sensor['Value']) < int(system_fan_speed):
+                        system_fan_speed = sensor['Value']
+                        system_fan_missing = False
             #Network sensors
             if sensor['Name'] == "Upload Speed":
                 up = float(sensor['Value']) + up
@@ -507,6 +514,9 @@ def poll_libre():
                 d_up = float(sensor['Value']) + d_up
             if sensor['Name'] == "Write Rate":
                 d_down = float(sensor['Value']) + d_down
+        if system_fan_missing:
+            system_fan_speed = 0
+        fan_speeds.append(("RAM", system_fan_speed))
         if not data_matched:
             print("No GPU data found while processing libre_poll")
             return False
