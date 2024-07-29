@@ -270,7 +270,7 @@ def check_web_server():
         start_time_ms = time.time()
         WEB_SERVER['response_time'] = -1
         try:
-            response = requests.get(url, timeout=10)
+            response = requests.get(url, timeout=5)
         except Exception as e:
             print(f"Error occurred in fetching web server data")
             print(e)
@@ -393,7 +393,7 @@ def poll_libre():
     # Process temps into a list of tuples
     try:
         OHW_ADDRESS = f"http://{REMOTE_SERVER}:{REMOTE_PORT}/data.json"
-        libre_data = requests.get(OHW_ADDRESS).text
+        libre_data = requests.get(OHW_ADDRESS, timeout=2).text
     except:
         print("Error occurred in fetching LibreHW data")
         return False
