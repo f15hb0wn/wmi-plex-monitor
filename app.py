@@ -489,7 +489,7 @@ def poll_libre():
             for fan_number in SYSTEM_FANS_ENABLED:
                 fan_name = f"System Fan #{fan_number}"
                 if sensor['SensorType'] == u'Controls' and sensor['Name'] == fan_name:
-                    if int(sensor['Value']) < int(system_fan_speed):
+                    if int(sensor['Value']) <= int(system_fan_speed):
                         system_fan_speed = sensor['Value']
                         system_fan_missing = False
             #Network sensors
