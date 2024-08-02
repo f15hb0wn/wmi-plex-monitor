@@ -394,7 +394,7 @@ def poll_libre():
     # Process temps into a list of tuples
     try:
         OHW_ADDRESS = f"http://{REMOTE_SERVER}:{REMOTE_PORT}/data.json"
-        libre_data = requests.get(OHW_ADDRESS, timeout=2).text
+        libre_data = requests.get(OHW_ADDRESS, timeout=5).text
     except:
         print("Error occurred in fetching LibreHW data")
         return False
