@@ -144,7 +144,7 @@ def fetch_weather():
     except:
         print("Error occurred in fetching weather data")
         return False
-
+    
     # Check if the request was successful
     if response.status_code == 200:
         # Parse the JSON response
@@ -152,7 +152,7 @@ def fetch_weather():
 
         # Extract the current temperature, high, low, and chance of rain
         # Pretty print the JSON response
-        if DEBUG: print(json.dumps(data, indent=4))
+        # if DEBUG: print(json.dumps(data, indent=4))
 
       
         current_temp = data['current']['temp_f']
@@ -165,6 +165,7 @@ def fetch_weather():
             rain_modifier = 1
         chance_of_rain = data['forecast']['forecastday'][0]['day']['daily_chance_of_rain'] * rain_modifier
         chance_of_snow = data['forecast']['forecastday'][0]['day']['daily_chance_of_snow'] * rain_modifier
+        condition = data['forecast']['forecastday'][0]['day']['condition']['text']
         if chance_of_rain > 100:
             chance_of_rain = 100
         if chance_of_snow > 100:
@@ -222,27 +223,14 @@ def fetch_weather():
 
         # Set the color based on the weather conditions
         color = 'green'
-        if chance_of_rain > WEATHER_PRECIPITATION_WARNING:
-            if alert_level < 2:
-                alert = "Rain"
-                color = 'yellow'
-                alert_level = 1
-        elif high_temp > WEATHER_HIGH_TEMP_WARNING:
-            if alert_level < 2:
-                alert = "High Temp"
-                color = 'yellow'
-                alert_level = 1
-        elif low_temp < WEATHER_LOW_TEMP_WARNING:
-            if alert_level < 2:
-                alert = "Low Temp"
-                color = 'yellow'
-                alert_level = 1
 
         if alert_level == 1:
             color = 'yellow'
 
         if alert_level == 2:
             color = 'red'
+        if color == 'green':
+            alert = condition
 
         weather_data = {
             'alert': alert,
@@ -884,7 +872,7 @@ def update_metrics():
                         precip = f'{weather['chance_of_rain']}% Rain'
                     if weather['alert']:
                         shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
-                        msg = f'ALERT: {weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
+                        msg = f'{weather["alert"]} | {weather["current_temp"]}°F | {precip},  H: {weather["high_temp"]}°F L: {weather["low_temp"]}°F'
                         text = canvas.create_text(X_BUFFER, Y_BUFFER + row * ROW_HEIGHT, anchor='w', font=("Arial", small_font), fill='white', text=f"{msg}")
                     else:
                         shape = canvas.create_rectangle(5, 5 + row * ROW_HEIGHT, ROW_HEIGHT, ROW_HEIGHT + row * ROW_HEIGHT, fill=weather['color'])
